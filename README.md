@@ -8,7 +8,7 @@ Currently serving a coming-soon placeholder while the platform is built out.
 
 - Node.js (vanilla `http`), single static `index.html` served on `PORT` (default 3000)
 - Deployed via Coolify (Dockerfile build), same instance and target server as postoque.com and roamola.com
-- Domain: zcc.link
+- Domain: z-cc.link
 
 ## Local dev
 
