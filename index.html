@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZCC — Command Central</title>
+<meta name="description" content="Zinerge Command Central. Coming soon.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%230a0a0f%22/><text x=%2250%22 y=%2266%22 font-size=%2252%22 font-family=%22monospace%22 font-weight=%22700%22 fill=%22%2300e5c7%22 text-anchor=%22middle%22>Z</text></svg>">
+<style>
+  :root{
+    --bg:#08090d;
+    --bg-2:#0d0f16;
+    --line:rgba(255,255,255,0.08);
+    --text:#eef1f5;
+    --muted:#8a92a3;
+    --accent:#00e5c7;
+    --accent-dim:rgba(0,229,199,0.15);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    display:flex;
+    flex-direction:column;
+    min-height:100vh;
+    overflow-x:hidden;
+    position:relative;
+  }
+
+  /* background grid + glow */
+  .bg-grid{
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size:48px 48px;
+    mask-image:radial-gradient(ellipse 80% 60% at 50% 30%, #000 40%, transparent 90%);
+    -webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 30%, #000 40%, transparent 90%);
+    pointer-events:none;
+  }
+  .bg-glow{
+    position:fixed;
+    top:-20%; left:50%;
+    transform:translateX(-50%);
+    width:900px; height:900px;
+    background:radial-gradient(circle, var(--accent-dim) 0%, transparent 65%);
+    pointer-events:none;
+    filter:blur(10px);
+  }
+
+  header{
+    position:relative;
+    z-index:2;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:32px 40px;
+  }
+  .mark{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-weight:700;
+    letter-spacing:0.02em;
+    font-size:15px;
+  }
+  .mark .dot{
+    width:8px;height:8px;border-radius:50%;
+    background:var(--accent);
+    box-shadow:0 0 12px 2px var(--accent);
+  }
+  .mark span.dim{ color:var(--muted); font-weight:500; }
+
+  .status-pill{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:12px;
+    color:var(--muted);
+    border:1px solid var(--line);
+    padding:6px 12px;
+    border-radius:999px;
+    letter-spacing:0.03em;
+    text-transform:uppercase;
+    background:rgba(255,255,255,0.02);
+  }
+  .status-pill .pulse{
+    width:6px;height:6px;border-radius:50%;
+    background:var(--accent);
+    animation:pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{ opacity:1; box-shadow:0 0 0 0 var(--accent-dim); }
+    50%{ opacity:0.5; box-shadow:0 0 0 6px transparent; }
+  }
+
+  main{
+    position:relative;
+    z-index:2;
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:40px 24px 80px;
+  }
+
+  .eyebrow{
+    font-size:13px;
+    letter-spacing:0.18em;
+    text-transform:uppercase;
+    color:var(--accent);
+    font-weight:600;
+    margin-bottom:20px;
+  }
+
+  h1{
+    font-size:clamp(40px, 8vw, 88px);
+    line-height:1.02;
+    font-weight:800;
+    letter-spacing:-0.03em;
+    margin-bottom:20px;
+  }
+  h1 .grad{
+    background:linear-gradient(135deg, #ffffff 20%, var(--accent) 100%);
+    -webkit-background-clip:text;
+    background-clip:text;
+    -webkit-text-fill-color:transparent;
+  }
+
+  p.lede{
+    max-width:560px;
+    color:var(--muted);
+    font-size:17px;
+    line-height:1.6;
+    margin-bottom:44px;
+  }
+  p.lede strong{ color:var(--text); font-weight:600; }
+
+  .progress-wrap{
+    width:100%;
+    max-width:420px;
+    margin-bottom:56px;
+  }
+  .progress-track{
+    height:6px;
+    border-radius:999px;
+    background:rgba(255,255,255,0.06);
+    overflow:hidden;
+    border:1px solid var(--line);
+  }
+  .progress-fill{
+    height:100%;
+    width:38%;
+    border-radius:999px;
+    background:linear-gradient(90deg, var(--accent), #6df0ff);
+    box-shadow:0 0 16px var(--accent-dim);
+  }
+  .progress-label{
+    display:flex;
+    justify-content:space-between;
+    margin-top:10px;
+    font-size:12px;
+    color:var(--muted);
+    letter-spacing:0.02em;
+  }
+
+  .grid-cards{
+    display:grid;
+    grid-template-columns:repeat(3, minmax(140px,1fr));
+    gap:14px;
+    width:100%;
+    max-width:640px;
+  }
+  .card{
+    border:1px solid var(--line);
+    background:rgba(255,255,255,0.02);
+    border-radius:14px;
+    padding:18px 16px;
+    text-align:left;
+    transition:border-color .2s ease, background .2s ease;
+  }
+  .card:hover{
+    border-color:rgba(0,229,199,0.35);
+    background:rgba(0,229,199,0.04);
+  }
+  .card .k{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--muted);
+    margin-bottom:8px;
+  }
+  .card .v{
+    font-size:14px;
+    font-weight:600;
+    color:var(--text);
+  }
+  .card .v.on{ color:var(--accent); }
+
+  footer{
+    position:relative;
+    z-index:2;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:24px 40px 32px;
+    font-size:12px;
+    color:var(--muted);
+    border-top:1px solid var(--line);
+  }
+  footer a{ color:var(--muted); text-decoration:none; }
+  footer a:hover{ color:var(--accent); }
+  .footer-links{ display:flex; gap:20px; }
+
+  @media (max-width:640px){
+    header{ padding:24px 20px; }
+    footer{ padding:20px 20px 28px; flex-direction:column; gap:14px; text-align:center; }
+    .grid-cards{ grid-template-columns:1fr; }
+    main{ padding:20px 20px 60px; }
+  }
+</style>
+</head>
+<body>
+  <div class="bg-glow"></div>
+  <div class="bg-grid"></div>
+
+  <header>
+    <div class="mark"><span class="dot"></span>ZCC <span class="dim">/ Command Central</span></div>
+    <div class="status-pill"><span class="pulse"></span>Building in public</div>
+  </header>
+
+  <main>
+    <div class="eyebrow">Zinerge &middot; Gulan Group</div>
+    <h1>Command Central<br><span class="grad">is being wired up.</span></h1>
+    <p class="lede">
+      <strong>ZCC</strong> is the internal operations hub for the Zinerge / Gulan Group portfolio —
+      one place to see every venture, deployment and workstream at a glance. We're standing up the
+      infrastructure now.
+    </p>
+
+    <div class="progress-wrap">
+      <div class="progress-track"><div class="progress-fill"></div></div>
+      <div class="progress-label"><span>Infrastructure live</span><span>Dashboard in progress</span></div>
+    </div>
+
+    <div class="grid-cards">
+      <div class="card"><div class="k">Status</div><div class="v on">In build</div></div>
+      <div class="card"><div class="k">Stack</div><div class="v">Coolify &middot; GitHub</div></div>
+      <div class="card"><div class="k">Access</div><div class="v">Private</div></div>
+    </div>
+  </main>
+
+  <footer>
+    <div>&copy; <span id="year"></span> Zinerge Ltd. All rights reserved.</div>
+    <div class="footer-links">
+      <a href="https://zinerge.co.uk">zinerge.co.uk</a>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
