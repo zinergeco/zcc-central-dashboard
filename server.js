@@ -10,4 +10,4 @@ const server = http.createServer((req, res) => {
   res.end(html);
 });
 
-server.listen(PORT, () => console.log(`ZCC coming-soon page running on port ${PORT}`));
+server.listen(PORT, () => console.log(`ZCC Central Command running on port ${PORT}`));
