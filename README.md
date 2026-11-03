@@ -1,15 +1,17 @@
-# ZCC — Central Command
+# ZCC — Central Command (v2 "Nebula")
 
-The live control room for the Zinerge / Gulan Group portfolio: the full 32-agent roster across 7 divisions, the architecture, the connector catalogue, the build guides, and the roadmap — plus a "Connected properties" panel linking out to every live app in the portfolio (Postoque, Roamola, Sivelar, Turingminds, and this dashboard itself).
+The live control room for the Zinerge / Gulan Group portfolio: an animated, sci-fi-styled command mesh covering the full 65-agent roster across 11 divisions (Command, Knowledge & mesh, Social, Growth & CRM, Email & comms, Web & content, Delivery, Retainer clients, Global partners, International team, Agency ops), the Agent Bus protocol, the Block Registry lifecycle, the decision engine, guardrails, the tool stack, the data model, the interface spec and the build roadmap — plus a "Connected apps" view pinging every live property in the portfolio in real time (Postoque, Roamola, Sivelar, Turingminds, and this dashboard itself).
 
-Gated behind a demo login on load. Demo credentials are shown on the sign-in screen itself:
+This is v2 of the dashboard: a full rebuild of the earlier 32-agent/7-division version, based on the ZCC Agents Master Plan v2 ("Nebula" interface revision, October 2026). It replaces that version entirely rather than extending it.
+
+Gated behind a demo login on load, with two roles. Credentials are shown on the sign-in screen itself:
 
 ```
-Username: demo
-Password: zinerge2026
+Viewer — Username: demo   Password: zinerge2026
+Admin  — Username: admin  Password: zinerge2026admin
 ```
 
-This is a client-side demo gate (checked in the browser, persisted via `localStorage`), not production authentication — good enough to walk someone through the product, not to protect anything sensitive. Swapping in real auth (Supabase Auth, Cloudflare Access, etc.) is one of the roadmap items already listed in the "Foundations" phase inside the app.
+Viewers see everything but can't tick off roadmap build steps; admins can. This is a client-side demo gate (checked in the browser, persisted via `localStorage`), not production authentication — good enough to walk someone through the product, not to protect anything sensitive. Real auth (Supabase Auth, Cloudflare Access, etc.) and the rest of the actual agent-mesh backend (Agent Bus, Decision Arbiter, token service, Supabase schema, 65 agent blocks) are a separate, much larger build — see `docs/MASTER-PLAN-v2.md` in the project's knowledge base for the full spec and phased roadmap. This repo is the dashboard only.
 
 ## Stack
 
