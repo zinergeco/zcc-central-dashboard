@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Quant Nexus — ZCC Trading</title>
+<meta name="description" content="Quant Nexus — the AI futures-trading decision dashboard, part of ZCC Command Centre. Coming soon." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Manrope:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#07080f;
+    --bg-1:#0b0e1b;
+    --bg-2:#11152a;
+    --iris:#6c5ce7;
+    --azure:#3fa7ff;
+    --aqua:#35e8c8;
+    --text-0:#eef0ff;
+    --text-1:#a9adc9;
+    --text-2:#6b7094;
+    --line:rgba(140,150,210,0.14);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    background:
+      radial-gradient(60% 50% at 18% 12%, rgba(108,92,231,0.20), transparent 60%),
+      radial-gradient(55% 45% at 85% 20%, rgba(63,167,255,0.16), transparent 60%),
+      radial-gradient(70% 60% at 50% 100%, rgba(53,232,200,0.10), transparent 60%),
+      var(--bg-0);
+    color:var(--text-0);
+    font-family:'Manrope', sans-serif;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    overflow-x:hidden;
+    position:relative;
+  }
+  canvas#mesh{
+    position:fixed;
+    inset:0;
+    width:100%;
+    height:100%;
+    opacity:0.5;
+    z-index:0;
+    pointer-events:none;
+  }
+  .wrap{
+    position:relative;
+    z-index:1;
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:32px 20px;
+    text-align:center;
+  }
+  .badge{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:7px 16px;
+    border:1px solid var(--line);
+    border-radius:999px;
+    background:rgba(255,255,255,0.03);
+    backdrop-filter:blur(12px);
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--text-1);
+    margin-bottom:28px;
+  }
+  .badge .dot{
+    width:7px;height:7px;border-radius:50%;
+    background:linear-gradient(135deg, var(--iris), var(--aqua));
+    box-shadow:0 0 10px var(--aqua);
+    animation:pulse 2.2s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{opacity:1; transform:scale(1);}
+    50%{opacity:0.5; transform:scale(0.75);}
+  }
+  h1{
+    font-family:'Sora', sans-serif;
+    font-weight:800;
+    font-size:clamp(2.4rem, 6vw, 4.4rem);
+    line-height:1.05;
+    letter-spacing:-0.02em;
+    background:linear-gradient(100deg, var(--iris) 0%, var(--azure) 50%, var(--aqua) 100%);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+    margin-bottom:14px;
+  }
+  .sub{
+    font-family:'Sora', sans-serif;
+    font-weight:600;
+    font-size:clamp(1rem, 2vw, 1.25rem);
+    color:var(--text-1);
+    margin-bottom:22px;
+    letter-spacing:0.01em;
+  }
+  p.lede{
+    max-width:560px;
+    color:var(--text-1);
+    font-size:1rem;
+    line-height:1.65;
+    margin-bottom:36px;
+  }
+  .cards{
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+    justify-content:center;
+    max-width:720px;
+    margin-bottom:40px;
+  }
+  .card{
+    border:1px solid var(--line);
+    background:rgba(255,255,255,0.025);
+    backdrop-filter:blur(10px);
+    border-radius:14px;
+    padding:16px 20px;
+    min-width:150px;
+    text-align:left;
+  }
+  .card .k{
+    font-family:'JetBrains Mono', monospace;
+    font-size:10px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--text-2);
+    margin-bottom:6px;
+  }
+  .card .v{
+    font-family:'Sora', sans-serif;
+    font-weight:600;
+    font-size:0.95rem;
+    color:var(--text-0);
+  }
+  .back{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    color:var(--text-1);
+    text-decoration:none;
+    font-size:0.9rem;
+    font-weight:500;
+    border:1px solid var(--line);
+    padding:10px 20px;
+    border-radius:999px;
+    transition:border-color 0.2s, color 0.2s, background 0.2s;
+  }
+  .back:hover{
+    color:var(--text-0);
+    border-color:rgba(63,167,255,0.5);
+    background:rgba(63,167,255,0.08);
+  }
+  footer{
+    position:relative;
+    z-index:1;
+    text-align:center;
+    padding:22px 20px 28px;
+    font-size:0.78rem;
+    color:var(--text-2);
+    font-family:'JetBrains Mono', monospace;
+    letter-spacing:0.02em;
+  }
+  footer a{color:var(--text-1); text-decoration:none;}
+  footer a:hover{color:var(--aqua);}
+</style>
+</head>
+<body>
+<canvas id="mesh"></canvas>
+
+<div class="wrap">
+  <div class="badge"><span class="dot"></span>In development</div>
+
+  <h1>Quant Nexus</h1>
+  <div class="sub">ZCC Trading — AI Futures Decision Desk</div>
+
+  <p class="lede">
+    An AI-assisted decision dashboard for Binance USDC-M perpetuals — long/short signals
+    with tiered leverage context, built as part of ZCC Command Centre. A Stocks &amp; ETF
+    section is planned to follow. This page is a placeholder while the real build is underway.
+  </p>
+
+  <div class="cards">
+    <div class="card">
+      <div class="k">Market</div>
+      <div class="v">Binance USDC-M Perps</div>
+    </div>
+    <div class="card">
+      <div class="k">Signal type</div>
+      <div class="v">Long / Short</div>
+    </div>
+    <div class="card">
+      <div class="k">Leverage</div>
+      <div class="v">Tiered</div>
+    </div>
+    <div class="card">
+      <div class="k">Status</div>
+      <div class="v">Pre-build</div>
+    </div>
+  </div>
+
+  <a class="back" href="https://z-cc.link" rel="noopener">← ZCC Command Centre</a>
+</div>
+
+<footer>trading.z-cc.link · part of <a href="https://z-cc.link" rel="noopener">z-cc.link</a></footer>
+
+<script>
+(function(){
+  const canvas = document.getElementById('mesh');
+  const ctx = canvas.getContext('2d');
+  let w, h, dpr;
+  const NODES = 34;
+  let nodes = [];
+
+  function resize(){
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = window.innerWidth;
+    h = window.innerHeight;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+
+  function init(){
+    nodes = Array.from({length:NODES}, () => ({
+      x: Math.random()*w,
+      y: Math.random()*h,
+      vx: (Math.random()-0.5)*0.18,
+      vy: (Math.random()-0.5)*0.18,
+      r: 1 + Math.random()*1.6
+    }));
+  }
+
+  const colors = ['108,92,231', '63,167,255', '53,232,200'];
+
+  function tick(){
+    ctx.clearRect(0,0,w,h);
+    for(const n of nodes){
+      n.x += n.vx; n.y += n.vy;
+      if(n.x < 0 || n.x > w) n.vx *= -1;
+      if(n.y < 0 || n.y > h) n.vy *= -1;
+    }
+    for(let i=0;i<nodes.length;i++){
+      for(let j=i+1;j<nodes.length;j++){
+        const a = nodes[i], b = nodes[j];
+        const dx = a.x-b.x, dy = a.y-b.y;
+        const dist = Math.sqrt(dx*dx+dy*dy);
+        if(dist < 150){
+          ctx.strokeStyle = `rgba(100,120,200,${0.14*(1-dist/150)})`;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(a.x,a.y);
+          ctx.lineTo(b.x,b.y);
+          ctx.stroke();
+        }
+      }
+    }
+    nodes.forEach((n,i)=>{
+      const c = colors[i % colors.length];
+      ctx.fillStyle = `rgba(${c},0.75)`;
+      ctx.beginPath();
+      ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
+      ctx.fill();
+    });
+    requestAnimationFrame(tick);
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+  init();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
