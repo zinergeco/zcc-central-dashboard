@@ -911,6 +911,16 @@ body.min .sum{display:block}
       </div>
       <div class="connchecked" id="chk-turingminds"></div>
     </div>
+    <div class="card glass" style="--c:#00F0FF">
+      <span class="glow"></span>
+      <h4><span class="ico" data-ii="globe"></span>Trading · Quant Nexus</h4>
+      <p>AI futures signal desk: 15 Binance perps, 8 agents, live ETF flows and news.</p>
+      <div class="connrow">
+        <span class="pill" id="pill-trading"><i></i><span class="txt">Checking…</span></span>
+        <a class="btn sm" href="https://trading.z-cc.link/" target="_blank" rel="noopener">Open</a>
+      </div>
+      <div class="connchecked" id="chk-trading"></div>
+    </div>
   </div>
   <div class="space"></div>
   <div class="note glass"><span data-i="zap"></span><div><b>How this check works.</b> Each card fetches its URL directly from your browser with a short timeout. Any response, even an opaque cross-origin one, counts as reachable; a network failure or timeout counts as unreachable. It can’t see HTTP status codes, only whether the site answered, and it rechecks automatically every two minutes while this tab is visible.</div></div>
@@ -2123,7 +2133,8 @@ requestAnimationFrame(frame);
     {slug:"postoque", url:"https://postoque.com/"},
     {slug:"roamola", url:"https://roamola.com/"},
     {slug:"sivelar", url:"https://sivelar.com/"},
-    {slug:"turingminds", url:"https://turingminds.co.uk/"}
+    {slug:"turingminds", url:"https://turingminds.co.uk/"},
+    {slug:"trading", url:"https://trading.z-cc.link/"}
   ];
   function relTime(ms){
     var s = Math.round((Date.now()-ms)/1000);
