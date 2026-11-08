@@ -236,7 +236,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
 
 <div class="app">
 <header>
-  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.1</small></div>
+  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.2</small></div>
   <div class="hdr-mid">
     <button class="sect on" data-sect="crypto">◈ CRYPTO FUTURES</button>
     <button class="sect" data-sect="stocks">◇ STOCKS &amp; ETF<span class="lock">PHASE 2</span></button>
@@ -352,7 +352,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
   </div>
 </div>
 
-<footer>ZCC Trading · Quant Nexus v1.1 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
+<footer>ZCC Trading · Quant Nexus v1.2 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
 </div>
 
 <div id="shade"></div>
@@ -385,16 +385,18 @@ const SIM_BASE={BTC:98000,ETH:3400,XRP:2.3,SOL:175,LTC:92,BNB:900,ARB:0.42,AAVE:
 const AGENTS=[
  {id:'chief',name:'CHIEF STRATEGIST',ini:'CS',col:'#00f0ff',role:'Lead decision-maker · signal arbiter',
   resp:['Blends all agent votes into one score from −100 to +100','Issues the final LONG / SHORT / HOLD call with a confidence level','Resolves conflicts between agents (e.g. technicals vs crowd positioning)','Publishes the entry type, TP ladder and stop to the dashboard']},
- {id:'market',name:'MARKET ANALYST',ini:'MA',col:'#00ff9c',w:0.34,role:'Multi-timeframe price structure',
+ {id:'market',name:'MARKET ANALYST',ini:'MA',col:'#00ff9c',w:0.30,role:'Multi-timeframe price structure',
   resp:['Reads trend on 15m / 1h / 4h with EMA 9·21·50 stacks','Measures momentum with MACD histogram and RSI-14','Flags overbought or oversold exhaustion and Bollinger squeezes','Maps swing highs and lows used for stops and triggers']},
- {id:'deriv',name:'DERIVATIVES ANALYST',ini:'DA',col:'#ff2bd6',w:0.22,role:'Futures positioning & leverage flow',
+ {id:'deriv',name:'DERIVATIVES ANALYST',ini:'DA',col:'#ff2bd6',w:0.20,role:'Futures positioning & leverage flow',
   resp:['Tracks funding rates and fades over-crowded sides','Reads open-interest change against price (new money vs short covering)','Watches the global long/short account ratio','Tracks the taker buy/sell volume ratio for aggressive flow']},
- {id:'macro',name:'MACRO & FLOW ANALYST',ini:'MF',col:'#8a5cff',w:0.16,role:'Global liquidity & cross-asset regime',
+ {id:'macro',name:'MACRO & FLOW ANALYST',ini:'MF',col:'#8a5cff',w:0.14,role:'Global liquidity & cross-asset regime',
   resp:['Reads Fear & Greed extremes (contrarian at the tails)','Tracks BTC dominance for alt-season vs BTC-season rotation','Applies the BTC trend as a beta filter for every altcoin','Feeds spot ETF net flows into BTC / ETH / SOL / XRP']},
- {id:'quant',name:'QUANT MOMENTUM',ini:'QM',col:'#ffb000',w:0.16,role:'Volume, volatility & breakout detection',
+ {id:'quant',name:'QUANT MOMENTUM',ini:'QM',col:'#ffb000',w:0.14,role:'Volume, volatility & breakout detection',
   resp:['Detects volume spikes against the 20-bar average','Spots Bollinger squeeze breakouts','Scores the 24h relative strength of each coin against BTC','Measures ATR regime: expansion vs compression']},
- {id:'news',name:'NEWS SENTIMENT',ini:'NS',col:'#4dd2ff',w:0.12,role:'Headline intelligence',
+ {id:'news',name:'NEWS SENTIMENT',ini:'NS',col:'#4dd2ff',w:0.10,role:'Headline intelligence',
   resp:['Pulls the global crypto newswire continuously','Tags each headline to coins and scores bullish / bearish language','Raises an alert on hacks, exploits, lawsuits, listings and approvals','Feeds sentiment into each coin\'s vote']},
+ {id:'tech',name:'TECHNICAL RATING ENGINE',ini:'TR',col:'#ff8a3d',w:0.12,role:'Multi-factor technical consensus (TradingView-style)',
+  resp:['Runs Stochastic RSI, ADX/DI, Ichimoku Cloud, VWAP, OBV, daily pivots and the EMA 9/21/50 stack','Counts Buy / Neutral / Sell verdicts across 9 independent technical factors','Flags strong trend regimes (ADX &gt; 25) vs choppy, range-bound conditions','Feeds a statistical price-range projection (trend slope + ATR bands) into the drawer']},
  {id:'risk',name:'RISK MANAGER',ini:'RM',col:'#ff3860',role:'Capital protection · veto power',
   resp:['Calculates the liquidation price at 15x / 10x / 5x','Vetoes trades whose structural stop sits too close to liquidation','Builds the SL plus a TP ladder (1.5R / 2.5R / 4R)','Sizes positions from wallet × risk % ÷ stop distance']},
  {id:'fin',name:'FINANCIAL EXPERT',ini:'FE',col:'#c7ff4d',role:'Portfolio guidance & discipline',
@@ -407,7 +409,7 @@ const AGENTS=[
 const S={live:false,hosted:false,etfAuto:{},coins:{},fng:null,fngPrev:null,global:null,news:[],etf:{BTC:null,ETH:null,SOL:null,XRP:null},
   src:{},logs:[],cap:{bal:1000,riskPct:1,maxPos:4,dll:4,minConf:55},tf:'1h',openCoin:null,lastScore:0};
 COINS.forEach(k=>S.coins[k.c]={...k,sym:null,dataSym:null,quote:'USDC',fallback:false,price:null,prev:null,chg:0,vol:0,funding:null,
-  k15:[],k1h:[],k4h:[],oi:[],lsr:null,taker:null,sig:null});
+  k15:[],k1h:[],k4h:[],k12h:[],k1d:[],oi:[],lsr:null,taker:null,sig:null,techRating:null,predict:null});
 try{const c=JSON.parse(localStorage.getItem('qn_cap')||'null');if(c)Object.assign(S.cap,c);const e=JSON.parse(localStorage.getItem('qn_etf')||'null');if(e)Object.assign(S.etf,e);}catch(e){}
 
 /* ============================================================
@@ -437,6 +439,34 @@ function rsi(c,n=14){let g=0,l=0;for(let i=1;i<=n;i++){const d=c[i]-c[i-1];d>0?g
 function macd(c){const f=ema(c,12),s=ema(c,26);const m=f.map((v,i)=>v-s[i]);const sig=ema(m,9);return m.map((v,i)=>v-sig[i]);}
 function atr(k,n=14){const tr=k.map((b,i)=>i?Math.max(b.h-b.l,Math.abs(b.h-k[i-1].c),Math.abs(b.l-k[i-1].c)):b.h-b.l);return ema(tr,n);}
 function bbw(c,n=20){const m=sma(c,n);return c.map((_,i)=>{if(i<n-1)return null;const sl=c.slice(i-n+1,i+1);const sd=Math.sqrt(sl.reduce((a,v)=>a+(v-m[i])**2,0)/n);return{w:4*sd/m[i],u:m[i]+2*sd,l:m[i]-2*sd};});}
+/* advanced factors — CoinGlass/TradingView-style, all computed from Binance klines already in hand */
+function stochRsi(c,rsiN=14,stochN=14,kS=3,dS=3){
+  const r=rsi(c,rsiN);
+  const raw=r.map((v,i)=>{if(v==null||i<stochN-1)return null;const win=r.slice(i-stochN+1,i+1);if(win.some(x=>x==null))return null;const mn=Math.min(...win),mx=Math.max(...win);return mx===mn?50:(v-mn)/(mx-mn)*100;});
+  const smaN=(a,n)=>a.map((_,i)=>{if(i<n-1)return null;const w=a.slice(i-n+1,i+1);return w.some(x=>x==null)?null:w.reduce((x,y)=>x+y,0)/n;});
+  const k=smaN(raw,kS),d=smaN(k,dS);return{raw,k,d};
+}
+function adx(k,n=14){
+  const pDM=[0],mDM=[0],tr=[0];
+  for(let i=1;i<k.length;i++){const up=k[i].h-k[i-1].h,dn=k[i-1].l-k[i].l;pDM.push(up>dn&&up>0?up:0);mDM.push(dn>up&&dn>0?dn:0);tr.push(Math.max(k[i].h-k[i].l,Math.abs(k[i].h-k[i-1].c),Math.abs(k[i].l-k[i-1].c)));}
+  const atrN=ema(tr,n),pE=ema(pDM,n),mE=ema(mDM,n);
+  const pDI=pE.map((v,i)=>100*v/(atrN[i]||1e-9)),mDI=mE.map((v,i)=>100*v/(atrN[i]||1e-9));
+  const dx=pDI.map((v,i)=>{const s=v+mDI[i];return s===0?0:100*Math.abs(v-mDI[i])/s;});
+  return{plusDI:pDI,minusDI:mDI,adx:ema(dx,n)};
+}
+function ichimoku(k,tn=9,kn=26,sbn=52){
+  const hi=(n,i)=>Math.max(...k.slice(Math.max(0,i-n+1),i+1).map(b=>b.h));
+  const lo=(n,i)=>Math.min(...k.slice(Math.max(0,i-n+1),i+1).map(b=>b.l));
+  const tenkan=k.map((_,i)=>i<tn-1?null:(hi(tn,i)+lo(tn,i))/2);
+  const kijun=k.map((_,i)=>i<kn-1?null:(hi(kn,i)+lo(kn,i))/2);
+  const senkouA=tenkan.map((t,i)=>t==null||kijun[i]==null?null:(t+kijun[i])/2);
+  const senkouB=k.map((_,i)=>i<sbn-1?null:(hi(sbn,i)+lo(sbn,i))/2);
+  return{tenkan,kijun,senkouA,senkouB};
+}
+function vwap(k,n=24){const win=k.slice(-n);let pv=0,vol=0;win.forEach(b=>{const tp=(b.h+b.l+b.c)/3;pv+=tp*b.v;vol+=b.v;});return vol?pv/vol:null;}
+function pivotPoints(k1d){if(!k1d||k1d.length<2)return null;const prev=k1d[k1d.length-2];const pp=(prev.h+prev.l+prev.c)/3;
+  return{pp,r1:2*pp-prev.l,s1:2*pp-prev.h,r2:pp+(prev.h-prev.l),s2:pp-(prev.h-prev.l),r3:prev.h+2*(pp-prev.l),s3:prev.l-2*(prev.h-pp)};}
+function obv(k){const o=[0];for(let i=1;i<k.length;i++){o.push(o[i-1]+(k[i].c>k[i-1].c?k[i].v:k[i].c<k[i-1].c?-k[i].v:0));}return o;}
 
 /* ============================================================
    DATA — LIVE
@@ -457,10 +487,10 @@ const mapK=a=>a.map(r=>({t:r[0],o:+r[1],h:+r[2],l:+r[3],c:+r[4],v:+r[5]}));
 async function loadKlines(){
   setSrc('klines','wait');let ok=0;
   for(const k of COINS){const co=S.coins[k.c];if(!co.sym)continue;
-    try{const [a,b,c]=await Promise.all(['15m','1h','4h'].map(iv=>getJSON(`${FAPI}/fapi/v1/klines?symbol=${co.sym}&interval=${iv}&limit=160`)));
-      co.k15=mapK(a);co.k1h=mapK(b);co.k4h=mapK(c);ok++;}catch(e){}
+    try{const [a,b,c,d,dd]=await Promise.all(['15m','1h','4h','12h','1d'].map(iv=>getJSON(`${FAPI}/fapi/v1/klines?symbol=${co.sym}&interval=${iv}&limit=160`)));
+      co.k15=mapK(a);co.k1h=mapK(b);co.k4h=mapK(c);co.k12h=mapK(d);co.k1d=mapK(dd);ok++;}catch(e){}
     await sleep(60);}
-  setSrc('klines',ok?'ok':'err',ok+'/15 contracts · 15m/1h/4h');
+  setSrc('klines',ok?'ok':'err',ok+'/15 contracts · 15m/1h/4h/12h/1d');
 }
 async function loadTickers(){
   try{const [t,p]=await Promise.all([getJSON(FAPI+'/fapi/v1/ticker/24hr'),getJSON(FAPI+'/fapi/v1/premiumIndex')]);
@@ -521,7 +551,7 @@ function simInit(){
   COINS.forEach((k,i)=>{const co=S.coins[k.c];const r=rnd(seed*31+i*7+1);const vol=k.lev===15?0.004:k.lev===10?0.006:0.008;const drift=(r()-.5)*vol*.5;
     co.sym=(k.c==='PEPE'?'1000PEPE':k.c)+'USDC';co.dataSym=co.sym;co.quote='USDC';co.mult=k.c==='PEPE'?1000:1;
     const base=SIM_BASE[k.c]*(k.c==='PEPE'?1000:1);
-    co.k15=simSeries(base,160,9e5,vol,r,drift);co.k1h=simSeries(base,160,36e5,vol*1.9,r,drift*2);co.k4h=simSeries(base,160,144e5,vol*3.6,r,drift*3);
+    co.k15=simSeries(base,160,9e5,vol,r,drift);co.k1h=simSeries(base,160,36e5,vol*1.9,r,drift*2);co.k4h=simSeries(base,160,144e5,vol*3.6,r,drift*3);co.k12h=simSeries(base,160,432e5,vol*5,r,drift*4);co.k1d=simSeries(base,160,864e5,vol*6,r,drift*5);
     co.price=base;co.chg=(r()-.45)*8;co.vol=1e8*(1+r()*20);co.funding=(r()-.4)*0.04;
     co.oi=Array.from({length:25},(_,j)=>1e8*(1+j*(r()-.45)*.02));co.lsr=0.7+r()*1.9;co.taker=0.85+r()*.3;});
   S.fng=Math.round(25+Math.random()*50);S.fngPrev=S.fng-4;S.fngLbl=S.fng<45?'Fear':S.fng>55?'Greed':'Neutral';
@@ -541,6 +571,48 @@ function tfScore(k){if(!k||k.length<60)return{s:0,n:[]};const c=k.map(b=>b.c);co
   const slope=(e21[L]-e21[L-5])/e21[L];s+=clamp(slope*120,-.15,.15);
   if(r>72){s-=.2;n.push('RSI '+r.toFixed(0)+' overbought');}else if(r<28){s+=.2;n.push('RSI '+r.toFixed(0)+' oversold');}
   return{s:clamp(s,-1,1),rsi:r,e9:e9[L],e21:e21[L],e50:e50[L],hist:h[L],n};}
+
+function technicalRating(co){
+  const k=co.k1h;if(!k||k.length<60)return null;
+  const c=k.map(b=>b.c);const L=c.length-1;const rows=[];
+  const rv=rsi(c).at(-1);rows.push({name:'RSI(14)',val:rv!=null?rv.toFixed(0):'—',verdict:rv>70?'sell':rv<30?'buy':'neutral'});
+  const sr=stochRsi(c);const kV=sr.k.at(-1),dV=sr.d.at(-1);
+  rows.push({name:'Stoch RSI',val:kV!=null?kV.toFixed(0)+'/'+dV.toFixed(0):'—',verdict:kV==null?'neutral':kV>80?'sell':kV<20?'buy':(kV>dV?'buy':'sell')});
+  const h=macd(c);const hV=h[L],hP=h[L-1];rows.push({name:'MACD Hist',val:hV.toFixed(4),verdict:hV>0&&hV>hP?'buy':hV<0&&hV<hP?'sell':'neutral'});
+  const ax=adx(k);const adxV=ax.adx[L],pDI=ax.plusDI[L],mDI=ax.minusDI[L];
+  rows.push({name:'ADX(14)',val:(adxV||0).toFixed(0)+(adxV>25?' trending':' weak'),verdict:adxV>20?(pDI>mDI?'buy':'sell'):'neutral'});
+  const ich=ichimoku(k);const sA=ich.senkouA[L],sB=ich.senkouB[L];const lastP=c[L];
+  let ichV='neutral',ichLbl='—';
+  if(sA!=null&&sB!=null){const top=Math.max(sA,sB),bot=Math.min(sA,sB);ichLbl=lastP>top?'above cloud':lastP<bot?'below cloud':'inside cloud';ichV=lastP>top?'buy':lastP<bot?'sell':'neutral';}
+  rows.push({name:'Ichimoku Cloud',val:ichLbl,verdict:ichV});
+  const vw=vwap(k);rows.push({name:'VWAP (24h)',val:vw?fmtP(vw):'—',verdict:vw==null?'neutral':(co.price>vw?'buy':'sell')});
+  const ob=obv(k);const obSlope=ob.at(-1)-ob[Math.max(0,ob.length-11)];
+  rows.push({name:'OBV Trend',val:obSlope>0?'rising':obSlope<0?'falling':'flat',verdict:obSlope>0?'buy':obSlope<0?'sell':'neutral'});
+  const piv=pivotPoints(co.k1d);
+  if(piv)rows.push({name:'Daily Pivot',val:'PP '+fmtP(piv.pp),verdict:co.price>piv.pp?'buy':co.price<piv.pp?'sell':'neutral'});
+  const e9=ema(c,9)[L],e21=ema(c,21)[L],e50=ema(c,50)[L];
+  rows.push({name:'EMA 9/21/50',val:e9>e21&&e21>e50?'stacked up':e9<e21&&e21<e50?'stacked down':'mixed',verdict:e9>e21&&e21>e50?'buy':e9<e21&&e21<e50?'sell':'neutral'});
+  const buy=rows.filter(r=>r.verdict==='buy').length,sell=rows.filter(r=>r.verdict==='sell').length,neutral=rows.length-buy-sell;
+  let overall='NEUTRAL';const net=buy-sell;
+  if(net>=4)overall='STRONG BUY';else if(net>=2)overall='BUY';else if(net<=-4)overall='STRONG SELL';else if(net<=-2)overall='SELL';
+  return{rows,buy,sell,neutral,overall};
+}
+function predictPrice(co){
+  const k=co.k1h;if(!k||k.length<30)return null;
+  const c=k.map(b=>b.c);const N=Math.min(24,c.length);const recent=c.slice(-N);const n=recent.length;
+  const xs=recent.map((_,i)=>i);const sumX=xs.reduce((a,b)=>a+b,0),sumY=recent.reduce((a,b)=>a+b,0);
+  const sumXY=xs.reduce((a,x,i)=>a+x*recent[i],0),sumXX=xs.reduce((a,x)=>a+x*x,0);
+  const denom=(n*sumXX-sumX*sumX)||1e-9;const slope=(n*sumXY-sumX*sumY)/denom;const intercept=(sumY-slope*sumX)/n;
+  const yPred=xs.map(x=>slope*x+intercept);const meanY=sumY/n;
+  const ssTot=recent.reduce((a,y)=>a+(y-meanY)**2,0),ssRes=recent.reduce((a,y,i)=>a+(y-yPred[i])**2,0);
+  const r2=ssTot>0?1-ssRes/ssTot:0;
+  const a1=atr(k).at(-1)||co.price*0.01;const horizonBars=4;
+  const projected=co.price+slope*horizonBars;const volBand=a1*Math.sqrt(horizonBars)*1.2;
+  const adxV=adx(k).adx.at(-1)||0;
+  const confidence=clamp(Math.round(r2*65+(adxV>25?25:adxV/25*25)),5,95);
+  const bias=slope>co.price*0.0003?'UP':slope<-co.price*0.0003?'DOWN':'FLAT';
+  return{horizon:'4h',bias,confidence,low:projected-volBand,high:projected+volBand,mid:projected,r2};
+}
 
 function analyse(co){
   const votes={};const why=[];const k=COINS.find(x=>x.c===co.c);const btc=S.coins.BTC;
@@ -578,6 +650,10 @@ function analyse(co){
   votes.quant=clamp(q,-1,1);why.push('Quant Momentum: '+(qn.join('; ')||'quiet tape')+'.');
   // NEWS
   votes.news=co.newsScore||0;why.push('News Sentiment: '+(co.newsCount?co.newsCount+' headlines, net '+(co.newsScore>0?'bullish':co.newsScore<0?'bearish':'neutral'):'no coin-specific headlines')+'.');
+  // TECHNICAL RATING ENGINE (Stoch RSI, ADX/DI, Ichimoku, VWAP, OBV, pivots, EMA stack)
+  const tr=technicalRating(co);co.techRating=tr;co.predict=predictPrice(co);
+  const techVote=tr?clamp((tr.buy-tr.sell)/Math.max(1,tr.rows.length)*1.3,-1,1):0;votes.tech=techVote;
+  why.push('Technical Rating Engine: '+(tr?`${tr.overall} — ${tr.buy} buy / ${tr.neutral} neutral / ${tr.sell} sell across ${tr.rows.length} factors.`:'insufficient history yet.'));
   // CHIEF blend
   let score=0;AGENTS.filter(a=>a.w).forEach(a=>score+=votes[a.id]*a.w);score=clamp(score/0.85,-1,1)*100;
   const agree=AGENTS.filter(a=>a.w).filter(a=>Math.sign(votes[a.id])===Math.sign(score)&&Math.abs(votes[a.id])>.05).length;
@@ -706,11 +782,15 @@ function renderDrawer(){
   let call;
   if(s.side==='HOLD')call=`<b class="am">HOLD. No trade right now.</b> Score ${s.score.toFixed(0)} is inside the ±30 no-trade band${s.why.some(w=>w.includes('VETO'))?', or the Risk Manager vetoed the setup':''}. Arm alerts: <b class="up">long</b> on a 15m close above <b>${fmtP(P.longTrig)}</b>, <b class="dn">short</b> on a 15m close below <b>${fmtP(P.shortTrig)}</b>, then re-check here.`;
   else call=`<b class="${sideCls}">${s.side==='LONG'?'BUY / LONG':'SELL / SHORT'} ${co.c} at ${k.lev}×.</b> ${P.type==='MARKET'?`Price is at the fast EMA, so take a <b>MARKET</b> order now near <b>${fmtP(P.entry)}</b>.`:`Price is extended, so place a <b>LIMIT</b> at <b>${fmtP(P.entry)}</b> (15m EMA21 pull-back). Cancel it if not filled within 2 hours.`} Set the stop-loss at <b class="dn">${fmtP(P.sl)}</b> immediately on fill. Take profit in three steps: 40% at TP1, 35% at TP2, and run 25% to TP3. Move the stop to entry once TP1 fills.`;
+  const tr=co.techRating,pred=co.predict;
+  const biasCls=pred?(pred.bias==='UP'?'LONG':pred.bias==='DOWN'?'SHORT':'HOLD'):'HOLD';
+  const predBlock=pred?`<b class="${biasCls==='LONG'?'up':biasCls==='SHORT'?'dn':'am'}">${pred.bias} bias, ${pred.confidence}% statistical confidence.</b> Linear-regression trend + ATR volatility over the last 24h of 1h closes projects a likely range of <b>${fmtP(pred.low)}</b> – <b>${fmtP(pred.high)}</b> over the next ~${pred.horizon} (mid ${fmtP(pred.mid)}). This is a trend/volatility extrapolation, not a guarantee — one more input alongside the agent votes, not a forecast to trade on alone.`
+    :'Gathering enough 1h history to project a range…';
   $('#drawer').innerHTML=`<button class="x" onclick="closeDrawer()">✕ ESC</button>
   <div class="d-head"><h2>${co.c}</h2><div><div class="c-pair">${co.sym||''} · PERPETUAL · ${k.lev}× ${co.fallback?'<span class="tag">USDT DATA</span>':''}</div><div style="font-family:var(--mono);font-size:24px" id="dPrice">${fmtP(co.price)}</div></div>
    <div class="badge ${s.side}" style="font-size:15px">${s.side}</div><div style="font-family:var(--mono);font-size:12px" class="dim">score ${s.score.toFixed(0)}<br>conf ${s.conf.toFixed(0)}%</div></div>
   <div class="callout ${s.side}">${call}</div>
-  <div style="margin-bottom:6px">${['15m','1h','4h'].map(t=>`<button class="tfbtn ${S.tf===t?'on':''}" data-tf="${t}">${t}</button>`).join('')}</div>
+  <div style="margin-bottom:6px">${['15m','1h','4h','12h','1D'].map(t=>`<button class="tfbtn ${S.tf===t?'on':''}" data-tf="${t}">${t}</button>`).join('')}</div>
   <canvas id="chart"></canvas>
   ${s.side!=='HOLD'?`<div class="plan">
    <div><b>ENTRY · ${P.type}</b><span>${fmtP(P.entry)}</span><em>margin ≈ $${P.margin.toFixed(2)}</em></div>
@@ -723,17 +803,49 @@ function renderDrawer(){
    <div><b>RISK IF STOPPED</b><span class="dn">$${P.riskAmt.toFixed(2)}</span><em>${S.cap.riskPct}% of wallet</em></div>
    <div><b>ATR 1H</b><span>${P.atrPct.toFixed(2)}%</span><em>volatility regime</em></div></div>`:
    `<div class="plan"><div><b>LONG TRIGGER</b><span class="up">${fmtP(P.longTrig)}</span><em>15m close above</em></div><div><b>SHORT TRIGGER</b><span class="dn">${fmtP(P.shortTrig)}</span><em>15m close below</em></div><div><b>ATR 1H</b><span>${P.atrPct.toFixed(2)}%</span><em>liq at ${k.lev}× ≈ ${P.liqPct.toFixed(1)}%</em></div></div>`}
-  <div class="ptitle" style="margin-top:6px">AGENT VOTES</div>
+  <div class="ptitle" style="margin-top:16px">TECHNICAL RATING <span class="r">${tr?`${tr.overall} · ${tr.buy} buy / ${tr.neutral} neutral / ${tr.sell} sell`:'—'}</span></div>
+  <div class="lv" style="grid-template-columns:repeat(3,1fr)">${tr?tr.rows.map(row=>`<div><b>${row.name}</b><span class="${row.verdict==='buy'?'up':row.verdict==='sell'?'dn':'dim'}">${row.val} · ${row.verdict.toUpperCase()}</span></div>`).join(''):'<div class="dim">Awaiting indicator history…</div>'}</div>
+  <div class="ptitle" style="margin-top:16px">PREDICTION · STATISTICAL</div>
+  <div class="callout ${biasCls}">${predBlock}
+   <div><button class="btn" id="askAiBtn">⟶ ASK CLAUDE FOR A DEEPER READ</button></div>
+   <div id="aiPredictOut" style="margin-top:10px"></div></div>
+  <div class="ptitle" style="margin-top:16px">AGENT VOTES</div>
   <div class="votes">${AGENTS.filter(a=>a.w).map(a=>{const v=s.raw[a.id]||0;const w=Math.abs(v)*50;return`<div class="vote"><span style="color:${a.col};font-family:var(--hud);font-size:10px;letter-spacing:1.5px">${a.name}</span><div class="vb"><i style="left:${v>=0?50:50-w}%;width:${w}%;background:${v>=0?'var(--green)':'var(--red)'};box-shadow:0 0 8px ${v>=0?'var(--green)':'var(--red)'}"></i></div><span style="font-family:var(--mono);font-size:12px" class="${v>0?'up':v<0?'dn':'dim'}">${(v*100).toFixed(0)}</span></div>`;}).join('')}</div>
   <div class="ptitle" style="margin-top:16px">REASONING TRACE</div>
   <ul class="why">${s.why.map(w=>`<li>${w}</li>`).join('')}<li>Financial Expert: ${s.side==='HOLD'?'capital stays parked. No edge means no trade.':s.conf<S.cap.minConf?`confidence ${s.conf.toFixed(0)}% is below your ${S.cap.minConf}% minimum, so size down by half or skip.`:`within your rules. Risk ${S.cap.riskPct}% ($${P.riskAmt.toFixed(2)}) and count it toward your ${S.cap.maxPos} max positions.`}</li></ul>
   <div class="dim" style="font-size:11px;font-family:var(--mono);margin-top:10px">analysed ${new Date(s.at).toLocaleTimeString('en-GB')} · ${S.live?'LIVE Binance data':'SIMULATED data'}</div>`;
   document.querySelectorAll('.tfbtn').forEach(b=>b.onclick=()=>{S.tf=b.dataset.tf;renderDrawer();});
+  const askBtn=$('#askAiBtn');if(askBtn)askBtn.onclick=()=>askAI(co.c);
   requestAnimationFrame(drawChart);
+}
+async function askAI(coinCode){
+  const co=S.coins[coinCode];if(!co||!co.sig)return;
+  const btn=$('#askAiBtn'),out=$('#aiPredictOut');
+  if(btn){btn.disabled=true;btn.textContent='⟳ ASKING CLAUDE…';}
+  if(out)out.innerHTML='<span class="dim">Contacting Claude…</span>';
+  try{
+    const snap=buildSnapshot(co);
+    const r=await fetch('/api/predict',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(snap)});
+    const j=await r.json();
+    if(j.error)throw new Error(j.error);
+    const dirCol=j.direction==='LONG'?'var(--green)':j.direction==='SHORT'?'var(--red)':'var(--amber)';
+    if(out)out.innerHTML=`<div class="ptitle" style="margin-top:0">CLAUDE'S READ <span class="r" style="color:${dirCol}">${j.direction||'—'}${j.confidence!=null?' · '+j.confidence+'% conf':''}</span></div><div style="font-size:14px;line-height:1.6">${(j.prediction||'').replace(/</g,'&lt;')}</div>`;
+  }catch(e){if(out)out.innerHTML=`<span class="dn">Claude request failed: ${e.message}</span>`;}
+  finally{if(btn){btn.disabled=false;btn.textContent='⟶ ASK CLAUDE FOR A DEEPER READ';}}
+}
+function buildSnapshot(co){
+  const s=co.sig,tr=co.techRating,pred=co.predict,k=COINS.find(x=>x.c===co.c);
+  return{symbol:co.c,price:co.price,chg24h:co.chg,leverage:k.lev,
+    agentScore:Math.round(s.score),agentSide:s.side,agentConfidence:Math.round(s.conf),
+    funding:co.funding,longShortRatio:co.lsr,takerRatio:co.taker,
+    rsi1h:s.t1&&s.t1.rsi!=null?+s.t1.rsi.toFixed(1):null,
+    techRating:tr?{overall:tr.overall,buy:tr.buy,neutral:tr.neutral,sell:tr.sell,factors:tr.rows.map(r=>({name:r.name,value:r.val,verdict:r.verdict}))}:null,
+    statisticalPrediction:pred?{bias:pred.bias,confidence:pred.confidence,low:+pred.low.toFixed(6),high:+pred.high.toFixed(6),mid:+pred.mid.toFixed(6),horizon:pred.horizon}:null,
+    fearGreed:S.fng,btcDominance:S.global?S.global.dom:null};
 }
 function drawChart(){
   const co=S.coins[S.openCoin];const c=$('#chart');if(!c||!co)return;const dpr=devicePixelRatio||1;const W=c.clientWidth,H=c.clientHeight;c.width=W*dpr;c.height=H*dpr;const g=c.getContext('2d');g.scale(dpr,dpr);
-  const K=(S.tf==='15m'?co.k15:S.tf==='4h'?co.k4h:co.k1h);if(!K.length)return;const kk=K.slice(-90);const cl=K.map(b=>b.c);
+  const K=(S.tf==='15m'?co.k15:S.tf==='4h'?co.k4h:S.tf==='12h'?co.k12h:S.tf==='1D'?co.k1d:co.k1h);if(!K.length)return;const kk=K.slice(-90);const cl=K.map(b=>b.c);
   const e21=ema(cl,21).slice(-90),e50=ema(cl,50).slice(-90);const P=co.sig.plan;
   const lv=[];if(co.sig.side!=='HOLD'){lv.push([P.entry,'#00f0ff','ENTRY'],[P.sl,'#ff3860','SL'],[P.tp[0],'#00ff9c','TP1'],[P.tp[1],'#00ff9c','TP2'],[P.tp[2],'#00ff9c','TP3']);}else{lv.push([P.longTrig,'#00ff9c','LONG >'],[P.shortTrig,'#ff3860','SHORT <']);}
   let mn=Math.min(...kk.map(b=>b.l),...lv.map(x=>x[0])),mx=Math.max(...kk.map(b=>b.h),...lv.map(x=>x[0]));const pad=(mx-mn)*.06;mn-=pad;mx+=pad;
@@ -758,11 +870,11 @@ function buildAgents(){
    <div class="ah"><div class="av" style="color:${a.col};background:${a.col}18;border:1px solid ${a.col};box-shadow:0 0 18px ${a.col}55">${a.ini}</div><div><h3 style="color:${a.col}">${a.name}</h3><div class="role">${a.role}${a.w?' · weight '+(a.w*100).toFixed(0)+'%':''}</div></div></div>
    <ul>${a.resp.map(r=>`<li>${r}</li>`).join('')}</ul><div class="out" id="ao-${a.id}">standing by…</div></div>`).join('');
   // flow svg
-  const srcs=['BINANCE WS','KLINES 15m·1h·4h','FUNDING · OI · L/S','FEAR & GREED','COINGECKO GLOBAL','ETF FLOWS','NEWSWIRE'];
+  const srcs=['BINANCE WS','KLINES 15m·1h·4h·12h·1d','FUNDING · OI · L/S','FEAR & GREED','COINGECKO GLOBAL','ETF FLOWS','NEWSWIRE'];
   const ag=AGENTS.filter(a=>a.w);
-  const M=[[0,0],[0,3],[1,0],[1,3],[2,1],[3,2],[4,2],[5,2],[6,4]];
+  const M=[[0,0],[0,3],[1,0],[1,3],[1,5],[2,1],[3,2],[4,2],[5,2],[6,4]];
   let h='<defs><filter id="gl"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
-  const sy=i=>30+i*60,ay=i=>50+i*85;
+  const sy=i=>30+i*60,ay=i=>50+i*64;
   M.forEach(([s,a],n)=>{const d=`M150 ${sy(s)} C 260 ${sy(s)}, 300 ${ay(a)}, 400 ${ay(a)}`;h+=`<path d="${d}" stroke="rgba(0,240,255,.22)" fill="none" stroke-width="1"/><circle r="3" fill="${ag[a].col}" filter="url(#gl)"><animateMotion dur="${2+n%3*.7}s" repeatCount="indefinite" path="${d}"/></circle>`;});
   ag.forEach((a,i)=>{const d=`M540 ${ay(i)} C 600 ${ay(i)}, 610 220, 660 220`;h+=`<path d="${d}" stroke="${a.col}55" fill="none" stroke-width="1.4"/><circle r="3.5" fill="${a.col}" filter="url(#gl)"><animateMotion dur="${1.6+i*.3}s" repeatCount="indefinite" path="${d}"/></circle>`;});
   h+=`<path d="M760 220 L 800 220" stroke="#ff3860" stroke-width="1.5"/><path d="M760 220 C 790 220, 780 340, 820 340" stroke="#c7ff4d88" fill="none"/>`;
@@ -790,6 +902,8 @@ function renderAgents(){
   set('macro',`F&G ${S.fng??'—'} · BTC.D ${S.global?S.global.dom.toFixed(1)+'%':'—'} · BTC beta ${S.coins.BTC.sig&&S.coins.BTC.sig.raw.market>0?'<b class="up">tailwind</b>':'<b class="dn">headwind</b>'}`);
   set('quant',`Top relative strength: <b class="up">${top('quant',1).c}</b> · weakest: <b class="dn">${top('quant',-1).c}</b>`);
   set('news',S.news.length?`${S.news.length} headlines scored · most positive: <b class="up">${top('news',1).c}</b>`:'<span class="am">Newswire offline (sandbox / API limit)</span>');
+  const techs=cs.filter(c=>c.techRating);
+  set('tech',techs.length?`Leader: <b class="${top('tech',1).techRating.overall.includes('SELL')?'dn':top('tech',1).techRating.overall.includes('BUY')?'up':'am'}">${top('tech',1).c} ${top('tech',1).techRating.overall}</b> · ${techs.filter(c=>c.techRating.overall.includes('BUY')).length} bullish / ${techs.filter(c=>c.techRating.overall.includes('SELL')).length} bearish ratings across the book`:'Awaiting indicator history…');
   const vetoes=cs.filter(c=>c.sig.why.some(w=>w.includes('VETO'))).map(c=>c.c);set('risk',vetoes.length?`Vetoed (too volatile for leverage): <b class="am">${vetoes.join(', ')}</b>`:'No vetoes. All stops sit safely inside liquidation buffers.');
   const act=cs.filter(c=>c.sig.side!=='HOLD'&&c.sig.conf>=S.cap.minConf);set('fin',`${act.length} trades clear your ${S.cap.minConf}% bar. Take at most <b>${S.cap.maxPos}</b> at ${S.cap.riskPct}% risk each.`);
   // flow out list
@@ -831,7 +945,7 @@ function renderCapital(){
 const SOURCES=[
  ['ws','Binance USDⓈ-M WebSocket','wss://fstream.binance.com/stream (@ticker)','Real-time price, 24h change and volume for all 15 contracts','Real-time'],
  ['exinfo','Binance Exchange Info','fapi.binance.com/fapi/v1/exchangeInfo','Resolves USDC contracts; falls back to USDT where no USDC pair exists','On load'],
- ['klines','Binance Klines','/fapi/v1/klines · 15m · 1h · 4h','Market Analyst and Quant Momentum: EMAs, RSI, MACD, ATR, Bollinger, volume','60 s'],
+ ['klines','Binance Klines','/fapi/v1/klines · 15m · 1h · 4h · 12h · 1d','Market Analyst, Quant Momentum and Technical Rating Engine: EMAs, RSI, MACD, ATR, Bollinger, Stoch RSI, ADX, Ichimoku, VWAP, OBV, pivots, volume','60 s'],
  ['funding','Binance Premium Index','/fapi/v1/premiumIndex','Funding rate and mark price for the Derivatives Analyst','60 s'],
  ['ticker','Binance 24h Ticker','/fapi/v1/ticker/24hr','Snapshot backup to the WebSocket and relative strength','60 s'],
  ['oi','Binance Open Interest History','/futures/data/openInterestHist','OI change vs price (new money or covering)','5 min'],
@@ -931,7 +1045,7 @@ async function liveCycle(full){
   try{await loadTickers();await loadKlines();if(full){await loadPositioning();}analyseAll();}catch(e){log('chief','Cycle error: '+e.message,'dn');}
 }
 async function boot(){
-  const lines=['> ZINERGE QUANT NEXUS v1.0','> initialising neural core ............ OK','> loading 8 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
+  const lines=['> ZINERGE QUANT NEXUS v1.2','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
   const bl=$('#bootlog');for(const l of lines){bl.textContent+=l+'\n';await sleep(220);}
   initBg();buildCards();buildAgents();renderCapital();renderSources();
   try{const h=await getJSON('/api/health',3000);S.hosted=!!(h&&h.ok);}catch(e){S.hosted=false;}
