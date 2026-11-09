@@ -249,7 +249,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
 
 <div class="app">
 <header>
-  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.4</small></div>
+  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.5</small></div>
   <div class="hdr-mid">
     <button class="sect on" data-sect="crypto">◈ CRYPTO FUTURES</button>
     <button class="sect" data-sect="stocks">◇ GLOBAL STOCKS</button>
@@ -294,7 +294,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
         <div class="stat"><div class="k">BTC DOMINANCE</div><div class="v" id="domV">—</div><div class="s" id="domS">—</div></div>
         <div class="stat"><div class="k">AVG FUNDING (8H)</div><div class="v" id="fundV">—</div><div class="s" id="fundS">—</div></div>
         <div class="stat"><div class="k">SPOT ETF NET FLOW</div><div class="v" id="etfV">—</div><div class="s" id="etfS">US spot · Farside daily</div></div>
-        <div class="stat wide"><div class="k">AGENT CONSENSUS · 15 CONTRACTS</div>
+        <div class="stat wide"><div class="k">AGENT CONSENSUS · 23 CONTRACTS</div>
           <div class="counts"><div style="color:var(--green);border-color:var(--green)"><span id="nL">0</span><small>LONG</small></div><div style="color:var(--amber);border-color:var(--amber)"><span id="nH">0</span><small>HOLD</small></div><div style="color:var(--red);border-color:var(--red)"><span id="nS">0</span><small>SHORT</small></div></div>
         </div>
       </div>
@@ -350,7 +350,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
   <div class="panel"><div class="ptitle">LIVE DATA UPLINKS <span class="r">status refreshes on every poll</span></div><div id="srcTable"></div></div>
   <div class="panel" style="margin-top:14px"><div class="ptitle">HOW A SIGNAL IS MADE</div>
     <div style="font-size:14px;line-height:1.65">
-      Every 60 seconds each contract is re-scored by six specialist agents. Each one returns a vote from −1 (strong short) to +1 (strong long) with a weight. The <b class="cy">Chief Strategist</b> blends the votes into a score from −100 to +100. Above +30 is <b class="up">LONG</b>, below −30 is <b class="dn">SHORT</b>, and anything between is <b class="am">HOLD</b>. The <b class="mg">Risk Manager</b> can veto any trade when the structural stop sits too close to liquidation for that coin's leverage (15x / 10x / 5x).<br><br>
+      Every 60 seconds each contract is re-scored by six specialist agents. Each one returns a vote from −1 (strong short) to +1 (strong long) with a weight. The <b class="cy">Chief Strategist</b> blends the votes into a score from −100 to +100. Above +30 is <b class="up">LONG</b>, below −30 is <b class="dn">SHORT</b>, and anything between is <b class="am">HOLD</b>. The <b class="mg">Risk Manager</b> can veto any trade when the structural stop sits too close to liquidation for that coin's leverage (15x / 10x / 5x / 4x).<br><br>
       <b>Entry:</b> MARKET when price is within 0.35 ATR of the 15m fast EMA; otherwise a LIMIT at the 15m EMA21 pull-back. <b>Stop:</b> beyond the 3-hour swing or 1.2× the 1h ATR, whichever is wider, capped at 45% of the liquidation distance. <b>Targets:</b> TP1 1.5R (close 40%, move SL to entry), TP2 2.5R (close 35%), TP3 4R (run 25%).
     </div>
   </div>
@@ -397,7 +397,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
   </div>
 </div>
 
-<footer>ZCC Trading · Quant Nexus v1.4 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
+<footer>ZCC Trading · Quant Nexus v1.5 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
 </div>
 
 <div id="shade"></div>
@@ -423,10 +423,18 @@ const COINS=[
  {c:'AVAX',lev:5,name:'Avalanche',kw:['avalanche','avax']},
  {c:'PEPE',lev:5,name:'Pepe',kw:['pepe']},
  {c:'NEO',lev:5,name:'NEO',kw:[' neo ']},
- {c:'HYPE',lev:5,name:'Hyperliquid',kw:['hyperliquid',' hype ']}
+ {c:'HYPE',lev:5,name:'Hyperliquid',kw:['hyperliquid',' hype ']},
+ {c:'LINK',lev:5,name:'Chainlink',kw:['chainlink',' link ']},
+ {c:'TRX',lev:4,name:'Tron',kw:['tron',' trx ']},
+ {c:'TON',lev:4,name:'Toncoin',kw:['toncoin',' ton ']},
+ {c:'AERO',lev:4,name:'Aerodrome',kw:['aerodrome',' aero ']},
+ {c:'UNI',lev:4,name:'Uniswap',kw:['uniswap',' uni ']},
+ {c:'GMX',lev:4,name:'GMX',kw:['gmx']},
+ {c:'RAY',lev:4,name:'Raydium',kw:['raydium',' ray ']},
+ {c:'DOT',lev:4,name:'Polkadot',kw:['polkadot',' dot ']}
 ];
 const FAPI='https://fapi.binance.com';
-const SIM_BASE={BTC:98000,ETH:3400,XRP:2.3,SOL:175,LTC:92,BNB:900,ARB:0.42,AAVE:250,SUI:3.1,NEAR:2.7,ADA:0.68,AVAX:24,PEPE:0.0105,NEO:6.2,HYPE:38};
+const SIM_BASE={BTC:98000,ETH:3400,XRP:2.3,SOL:175,LTC:92,BNB:900,ARB:0.42,AAVE:250,SUI:3.1,NEAR:2.7,ADA:0.68,AVAX:24,PEPE:0.0105,NEO:6.2,HYPE:38,LINK:16.5,TRX:0.24,TON:2.4,AERO:0.95,UNI:8.2,GMX:18,RAY:2.8,DOT:4.8};
 const AGENTS=[
  {id:'chief',name:'CHIEF STRATEGIST',ini:'CS',col:'#00f0ff',role:'Lead decision-maker · signal arbiter',
   resp:['Blends all agent votes into one score from −100 to +100','Issues the final LONG / SHORT / HOLD call with a confidence level','Resolves conflicts between agents (e.g. technicals vs crowd positioning)','Publishes the entry type, TP ladder and stop to the dashboard']},
@@ -443,7 +451,7 @@ const AGENTS=[
  {id:'tech',name:'TECHNICAL RATING ENGINE',ini:'TR',col:'#ff8a3d',w:0.12,role:'Multi-factor technical consensus (TradingView-style)',
   resp:['Runs Stochastic RSI, ADX/DI, Ichimoku Cloud, VWAP, OBV, daily pivots and the EMA 9/21/50 stack','Counts Buy / Neutral / Sell verdicts across 9 independent technical factors','Flags strong trend regimes (ADX &gt; 25) vs choppy, range-bound conditions','Feeds a statistical price-range projection (trend slope + ATR bands) into the drawer']},
  {id:'risk',name:'RISK MANAGER',ini:'RM',col:'#ff3860',role:'Capital protection · veto power',
-  resp:['Calculates the liquidation price at 15x / 10x / 5x','Vetoes trades whose structural stop sits too close to liquidation','Builds the SL plus a TP ladder (1.5R / 2.5R / 4R)','Sizes positions from wallet × risk % ÷ stop distance']},
+  resp:['Calculates the liquidation price at 15x / 10x / 5x / 4x','Vetoes trades whose structural stop sits too close to liquidation','Builds the SL plus a TP ladder (1.5R / 2.5R / 4R)','Sizes positions from wallet × risk % ÷ stop distance']},
  {id:'fin',name:'FINANCIAL EXPERT',ini:'FE',col:'#c7ff4d',role:'Portfolio guidance & discipline',
   resp:['Sets tier allocation and the maximum number of concurrent positions','Enforces the daily loss limit and cool-down rules','Warns on correlated exposure (e.g. 4 alt longs = 1 big BTC bet)','Ranks the actionable book by confidence and reward-to-risk']}
 ];
@@ -540,9 +548,9 @@ async function resolveSymbols(){
   for(const k of COINS){const co=S.coins[k.c];const base=k.c==='PEPE'?'1000PEPE':k.c;
     if(set.has(base+'USDC')){co.sym=base+'USDC';co.quote='USDC';}else if(set.has(base+'USDT')){co.sym=base+'USDT';co.quote='USDT';co.fallback=true;}else{co.sym=null;}
     co.dataSym=set.has(base+'USDT')?base+'USDT':co.sym;co.mult=k.c==='PEPE'?1000:1;}
-  setSrc('exinfo','ok',COINS.filter(k=>S.coins[k.c].quote==='USDC').length+'/15 USDC pairs trading');
+  setSrc('exinfo','ok',COINS.filter(k=>S.coins[k.c].quote==='USDC').length+'/'+COINS.length+' USDC pairs trading');
   const fb=COINS.filter(k=>S.coins[k.c].fallback).map(k=>k.c);
-  log('chief','Symbol map resolved. '+(fb.length?'No USDC-M contract for '+fb.join(', ')+', so USDT-M data is used for those.':'All 15 USDC contracts found.'));
+  log('chief','Symbol map resolved. '+(fb.length?'No USDC-M contract for '+fb.join(', ')+', so USDT-M data is used for those.':'All '+COINS.length+' USDC contracts found.'));
 }
 const mapK=a=>a.map(r=>({t:r[0],o:+r[1],h:+r[2],l:+r[3],c:+r[4],v:+r[5]}));
 async function loadKlines(){
@@ -551,7 +559,7 @@ async function loadKlines(){
     try{const [a,b,c,d,dd]=await Promise.all(['15m','1h','4h','12h','1d'].map(iv=>getJSON(`${FAPI}/fapi/v1/klines?symbol=${co.sym}&interval=${iv}&limit=160`)));
       co.k15=mapK(a);co.k1h=mapK(b);co.k4h=mapK(c);co.k12h=mapK(d);co.k1d=mapK(dd);ok++;}catch(e){}
     await sleep(60);}
-  setSrc('klines',ok?'ok':'err',ok+'/15 contracts · 15m/1h/4h/12h/1d');
+  setSrc('klines',ok?'ok':'err',ok+'/'+COINS.length+' contracts · 15m/1h/4h/12h/1d');
 }
 async function loadTickers(){
   try{const [t,p]=await Promise.all([getJSON(FAPI+'/fapi/v1/ticker/24hr'),getJSON(FAPI+'/fapi/v1/premiumIndex')]);
@@ -570,7 +578,7 @@ async function loadPositioning(){
       co.oi=oi.map(x=>+x.sumOpenInterestValue);co.lsr=ls.length?+ls.at(-1).longShortRatio:null;
       co.taker=tk.length?tk.reduce((a,x)=>a+ +x.buySellRatio,0)/tk.length:null;ok++;}catch(e){}
     await sleep(80);}
-  ['oi','lsr','taker'].forEach(id=>setSrc(id,ok?'ok':'err',ok+'/15 contracts'));
+  ['oi','lsr','taker'].forEach(id=>setSrc(id,ok?'ok':'err',ok+'/'+COINS.length+' contracts'));
 }
 async function loadMacro(){
   if(S.hosted){try{const m=await getJSON('/api/macro',15000);if(m.fng){S.fng=m.fng.now;S.fngLbl=m.fng.label;S.fngPrev=m.fng.prev;setSrc('fng','ok');}else setSrc('fng','err');if(m.global){S.global=m.global;setSrc('cg','ok');}else setSrc('cg','err');}catch(e){setSrc('fng','err',e.message);setSrc('cg','err',e.message);}return;}
@@ -761,7 +769,7 @@ function simSeries(base,n,stepMs,vol,r,drift){const o=[];let p=base*(1+(r()-.5)*
   const sc=base/o.at(-1).c;return o.map(b=>({...b,o:b.o*sc,h:b.h*sc,l:b.l*sc,c:b.c*sc}));}
 function simInit(){
   const seed=Math.floor(Date.now()/36e5);
-  COINS.forEach((k,i)=>{const co=S.coins[k.c];const r=rnd(seed*31+i*7+1);const vol=k.lev===15?0.004:k.lev===10?0.006:0.008;const drift=(r()-.5)*vol*.5;
+  COINS.forEach((k,i)=>{const co=S.coins[k.c];const r=rnd(seed*31+i*7+1);const vol=k.lev===15?0.004:k.lev===10?0.006:k.lev===5?0.008:0.011;const drift=(r()-.5)*vol*.5;
     co.sym=(k.c==='PEPE'?'1000PEPE':k.c)+'USDC';co.dataSym=co.sym;co.quote='USDC';co.mult=k.c==='PEPE'?1000:1;
     const base=SIM_BASE[k.c]*(k.c==='PEPE'?1000:1);
     co.k15=simSeries(base,160,9e5,vol,r,drift);co.k1h=simSeries(base,160,36e5,vol*1.9,r,drift*2);co.k4h=simSeries(base,160,144e5,vol*3.6,r,drift*3);co.k12h=simSeries(base,160,432e5,vol*5,r,drift*4);co.k1d=simSeries(base,160,864e5,vol*6,r,drift*5);
@@ -771,7 +779,7 @@ function simInit(){
   S.global={mcap:3.3e12,mchg:1.2,dom:58.4,ethDom:11.8,vol:1.2e11};
   ['exinfo','ticker','funding','klines','oi','lsr','taker','ws','fng','cg','news'].forEach(id=>setSrc(id,'blk','sandbox · simulated'));
 }
-function simTick(){for(const k of COINS){const co=S.coins[k.c];const vol=k.lev===15?0.0008:k.lev===10?0.0012:0.0016;co.prev=co.price;co.price*=1+(Math.random()-.5)*vol*2;
+function simTick(){for(const k of COINS){const co=S.coins[k.c];const vol=k.lev===15?0.0008:k.lev===10?0.0012:k.lev===5?0.0016:0.0022;co.prev=co.price;co.price*=1+(Math.random()-.5)*vol*2;
   const b=co.k15.at(-1);b.c=co.price;b.h=Math.max(b.h,co.price);b.l=Math.min(b.l,co.price);tickCard(co);}}
 
 /* ============================================================
@@ -948,7 +956,7 @@ function scoreNews(){
    RENDER — COMMAND
 ============================================================ */
 function buildCards(){
-  const tiers=[[15,'TIER I · MAJORS'],[10,'TIER II · L2 / DEFI'],[5,'TIER III · HIGH-BETA']];
+  const tiers=[[15,'TIER I · MAJORS'],[10,'TIER II · L2 / DEFI'],[5,'TIER III · HIGH-BETA'],[4,'TIER IV · ALT / EMERGING']];
   $('#tiers').innerHTML=tiers.map(([lev,t])=>`<div class="tierhead"><span>${t}</span><span class="lev">${lev}× LEVERAGE</span><span class="bar"></span></div>
    <div class="grid">${COINS.filter(k=>k.lev===lev).map(k=>`<div class="card HOLD" id="card-${k.c}" data-c="${k.c}"><div class="edge"></div>
      <div class="c-top"><div><div class="c-sym">${k.c}</div><div class="c-pair" id="pair-${k.c}">${k.name}</div></div><div class="badge HOLD" id="bd-${k.c}">SCAN</div></div>
@@ -1173,8 +1181,8 @@ function renderNews(){
 }
 function renderCapital(){
   const C=S.cap;
-  const tiers=[[15,0.5,'Majors: deepest liquidity, tightest stops'],[10,0.3,'L2 / DeFi: higher beta, wider swings'],[5,0.2,'High-beta: smallest slice, widest stops']];
-  $('#alloc').innerHTML='<table><tr><th>TIER</th><th>LEVERAGE</th><th>MARGIN BUDGET</th><th>MAX NOTIONAL</th><th>NOTE</th></tr>'+tiers.map(([l,w,n])=>`<tr><td style="font-family:var(--hud);font-size:11px">${l===15?'I':l===10?'II':'III'}</td><td class="mono mg">${l}×</td><td class="mono">$${(C.bal*w*0.6).toFixed(0)} <span class="dim">(${(w*60).toFixed(0)}%)</span></td><td class="mono">$${(C.bal*w*0.6*l).toFixed(0)}</td><td class="dim" style="font-size:12px">${n}</td></tr>`).join('')+`<tr><td colspan="5" class="dim" style="font-size:12px">40% of the wallet stays as an unallocated buffer against liquidation cascades and for adding margin.</td></tr></table>`;
+  const tiers=[[15,0.45,'Majors: deepest liquidity, tightest stops'],[10,0.25,'L2 / DeFi: higher beta, wider swings'],[5,0.2,'High-beta: smallest slice, widest stops'],[4,0.1,'Alt / emerging: thinnest liquidity, smallest slice']];
+  $('#alloc').innerHTML='<table><tr><th>TIER</th><th>LEVERAGE</th><th>MARGIN BUDGET</th><th>MAX NOTIONAL</th><th>NOTE</th></tr>'+tiers.map(([l,w,n])=>`<tr><td style="font-family:var(--hud);font-size:11px">${l===15?'I':l===10?'II':l===5?'III':'IV'}</td><td class="mono mg">${l}×</td><td class="mono">$${(C.bal*w*0.6).toFixed(0)} <span class="dim">(${(w*60).toFixed(0)}%)</span></td><td class="mono">$${(C.bal*w*0.6*l).toFixed(0)}</td><td class="dim" style="font-size:12px">${n}</td></tr>`).join('')+`<tr><td colspan="5" class="dim" style="font-size:12px">40% of the wallet stays as an unallocated buffer against liquidation cascades and for adding margin.</td></tr></table>`;
   const cs=COINS.map(k=>S.coins[k.c]).filter(c=>c.sig&&c.sig.side!=='HOLD').sort((a,b)=>b.sig.conf-a.sig.conf);
   let n=0;$('#book').innerHTML=cs.length?'<table><tr><th>#</th><th>COIN</th><th>SIDE</th><th>CONF</th><th>ENTRY</th><th>SL</th><th>TP1</th><th>MARGIN</th><th>VERDICT</th></tr>'+cs.map(c=>{const P=c.sig.plan;const ok=c.sig.conf>=C.minConf&&n<C.maxPos;if(ok)n++;
     return`<tr><td class="mono dim">${ok?n:'·'}</td><td style="font-family:var(--hud);font-size:12px">${c.c}</td><td class="${c.sig.side==='LONG'?'up':'dn'}" style="font-family:var(--hud);font-size:10px">${c.sig.side}</td><td class="mono">${c.sig.conf.toFixed(0)}%</td><td class="mono">${fmtP(P.entry)}<br><span class="dim">${P.type}</span></td><td class="mono dn">${fmtP(P.sl)}</td><td class="mono up">${fmtP(P.tp[0])}</td><td class="mono">$${P.margin.toFixed(2)}</td><td>${ok?'<span class="st ok">TAKE</span>':c.sig.conf<C.minConf?'<span class="st blk">LOW CONF</span>':'<span class="st wait">SLOTS FULL</span>'}</td></tr>`;}).join('')+'</table>':'<div class="dim" style="padding:14px">No actionable trades. Every contract is on HOLD. Capital stays in the wallet.</div>';
@@ -1192,7 +1200,7 @@ function renderCapital(){
   $('#rules').innerHTML=rules.map((r,i)=>`<li data-n="${String(i+1).padStart(2,'0')}">${r}</li>`).join('');
 }
 const SOURCES=[
- ['ws','Binance USDⓈ-M WebSocket','wss://fstream.binance.com/stream (@ticker)','Real-time price, 24h change and volume for all 15 contracts','Real-time'],
+ ['ws','Binance USDⓈ-M WebSocket','wss://fstream.binance.com/stream (@ticker)','Real-time price, 24h change and volume for all 23 contracts','Real-time'],
  ['exinfo','Binance Exchange Info','fapi.binance.com/fapi/v1/exchangeInfo','Resolves USDC contracts; falls back to USDT where no USDC pair exists','On load'],
  ['klines','Binance Klines','/fapi/v1/klines · 15m · 1h · 4h · 12h · 1d','Market Analyst, Quant Momentum and Technical Rating Engine: EMAs, RSI, MACD, ATR, Bollinger, Stoch RSI, ADX, Ichimoku, VWAP, OBV, pivots, volume','60 s'],
  ['funding','Binance Premium Index','/fapi/v1/premiumIndex','Funding rate and mark price for the Derivatives Analyst','60 s'],
@@ -1225,13 +1233,13 @@ function initOrb(){
   const core=new THREE.Mesh(new THREE.IcosahedronGeometry(1.5,1),new THREE.MeshBasicMaterial({color:0x00f0ff,wireframe:true,transparent:true,opacity:.55}));root.add(core);
   const core2=new THREE.Mesh(new THREE.IcosahedronGeometry(1.05,0),new THREE.MeshBasicMaterial({color:0xff2bd6,wireframe:true,transparent:true,opacity:.6}));root.add(core2);
   const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex('#00f0ff'),blending:THREE.AdditiveBlending,transparent:true,depthWrite:false}));glow.scale.set(5,5,1);root.add(glow);
-  const rings=[];[[2.6,0x00f0ff,.35],[3.4,0x8a5cff,.3],[4.2,0xff2bd6,.25]].forEach(([r,c,o],i)=>{const m=new THREE.Mesh(new THREE.TorusGeometry(r,.008,8,160),new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:o}));m.rotation.x=Math.PI/2+(i-1)*.25;m.rotation.y=i*.4;root.add(m);rings.push(m);});
+  const rings=[];[[2.6,0x00f0ff,.35],[3.4,0x8a5cff,.3],[4.2,0xff2bd6,.25],[5.0,0x00ff9c,.22]].forEach(([r,c,o],i)=>{const m=new THREE.Mesh(new THREE.TorusGeometry(r,.008,8,160),new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:o}));m.rotation.x=Math.PI/2+(i-1)*.25;m.rotation.y=i*.4;root.add(m);rings.push(m);});
   // particles
   const pg=new THREE.BufferGeometry();const N=1400;const pos=new Float32Array(N*3);for(let i=0;i<N;i++){const r=5+Math.random()*9,t=Math.random()*Math.PI*2,p=Math.acos(2*Math.random()-1);pos[i*3]=r*Math.sin(p)*Math.cos(t);pos[i*3+1]=r*Math.sin(p)*Math.sin(t);pos[i*3+2]=r*Math.cos(p);}
   pg.setAttribute('position',new THREE.BufferAttribute(pos,3));const pts=new THREE.Points(pg,new THREE.PointsMaterial({color:0x5fdcff,size:.035,transparent:true,opacity:.7}));sc.add(pts);
   // coin nodes
   const nodes=[];const lineMat=new THREE.LineBasicMaterial({color:0x00f0ff,transparent:true,opacity:.15});
-  COINS.forEach((k,i)=>{const tier=k.lev===15?0:k.lev===10?1:2;const r=[2.6,3.4,4.2][tier];const group=COINS.filter(x=>x.lev===k.lev);const j=group.indexOf(k);const a=j/group.length*Math.PI*2+tier*.5;
+  COINS.forEach((k,i)=>{const tier=k.lev===15?0:k.lev===10?1:k.lev===5?2:3;const r=[2.6,3.4,4.2,5.0][tier];const group=COINS.filter(x=>x.lev===k.lev);const j=group.indexOf(k);const a=j/group.length*Math.PI*2+tier*.5;
     const sp=new THREE.Mesh(new THREE.SphereGeometry(tier===0?.16:.13,20,20),new THREE.MeshBasicMaterial({color:0xffb000}));
     const g=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex('#ffb000'),blending:THREE.AdditiveBlending,transparent:true,depthWrite:false}));g.scale.set(.9,.9,1);sp.add(g);
     const lbl=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTex(k.c),transparent:true,depthWrite:false}));lbl.scale.set(1.1,.34,1);lbl.position.y=.34;sp.add(lbl);
@@ -1295,7 +1303,7 @@ async function liveCycle(full){
   try{await loadTickers();await loadKlines();if(full){await loadPositioning();}analyseAll();}catch(e){log('chief','Cycle error: '+e.message,'dn');}
 }
 async function boot(){
-  const lines=['> ZINERGE QUANT NEXUS v1.4','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
+  const lines=['> ZINERGE QUANT NEXUS v1.5','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
   const bl=$('#bootlog');for(const l of lines){bl.textContent+=l+'\n';await sleep(220);}
   initBg();buildCards();buildAgents();renderCapital();renderSources();
   try{const h=await getJSON('/api/health',3000);S.hosted=!!(h&&h.ok);}catch(e){S.hosted=false;}
