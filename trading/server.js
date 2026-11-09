@@ -15,6 +15,21 @@
 // zero-dependency regex HTML parser, and caches the result for a few hours
 // since Farside only republishes once per US trading day, not intraday.
 //
+// GET /api/stocks feeds the STOCKS tab: ~18 global index quotes with no
+// paid API key anywhere. Each index tries, in order, whichever of these
+// apply to it: (1) Yahoo Finance's unofficial chart endpoint — current
+// price plus ~1 month of daily closes in one call, known to be fragile
+// and unannounced-rate-limited, never trusted blindly; (2) Stooq's public
+// CSV quote endpoint — a second independent keyless source, price only;
+// (3) for Colombo only, CSE's own undocumented-but-real json API
+// (cse.lk/api/aspiData, /api/snpData — publicly reverse-engineered, POST,
+// no key), parsed defensively since its response shape was never
+// published. Whichever source answers is reported honestly per index
+// (source: 'yahoo'|'stooq'|'cse'|'unavailable') — nothing is ever
+// synthesized. Indices whose live source gives no history (Stooq
+// fallback, CSE) grow their own small in-memory rolling history over the
+// life of the running process instead.
+//
 // Every other signal on this page — the 8 original agent votes, the
 // Technical Rating Engine (Stoch RSI, ADX, Ichimoku, VWAP, OBV, pivots),
 // the default "statistical prediction" panel, the volume/liquidity-gap
@@ -206,6 +221,193 @@ async function apiEtf(req, res) {
   }
 }
 
+// ---------------------------------------------------------------------
+// GET /api/stocks — global index snapshot for the STOCKS tab
+// ---------------------------------------------------------------------
+const STOCK_INDICES = [
+  { id: 'spx',   name: 'S&P 500',            region: 'Americas',    yahoo: '^GSPC',      stooq: '^spx'   },
+  { id: 'ndq',   name: 'Nasdaq Composite',   region: 'Americas',    yahoo: '^IXIC',      stooq: '^ndq'   },
+  { id: 'dji',   name: 'Dow Jones (NYSE)',   region: 'Americas',    yahoo: '^DJI',       stooq: '^dji'   },
+  { id: 'tsx',   name: 'TSX Composite',      region: 'Americas',    yahoo: '^GSPTSE',    stooq: '^tsx'   },
+  { id: 'bvsp',  name: 'Bovespa',            region: 'Americas',    yahoo: '^BVSP',      stooq: '^bvsp'  },
+  { id: 'ftse',  name: 'FTSE 100',           region: 'Europe',      yahoo: '^FTSE',      stooq: '^ftse'  },
+  { id: 'dax',   name: 'DAX',                region: 'Europe',      yahoo: '^GDAXI',     stooq: '^dax'   },
+  { id: 'cac',   name: 'CAC 40',             region: 'Europe',      yahoo: '^FCHI',      stooq: '^cac'   },
+  { id: 'stoxx', name: 'Euro Stoxx 50',      region: 'Europe',      yahoo: '^STOXX50E',  stooq: '^sx5e'  },
+  { id: 'nse',   name: 'Nifty 50 (NSE)',     region: 'South Asia',  yahoo: '^NSEI',      stooq: '^nsei'  },
+  { id: 'bse',   name: 'Sensex (BSE)',       region: 'South Asia',  yahoo: '^BSESN',     stooq: '^bsesn' },
+  { id: 'cse',   name: 'ASPI (Colombo)',     region: 'South Asia',  cse: 'aspiData' },
+  { id: 'cse20', name: 'S&P SL20 (Colombo)', region: 'South Asia',  cse: 'snpData' },
+  { id: 'n225',  name: 'Nikkei 225',         region: 'Asia-Pacific',yahoo: '^N225',      stooq: '^nkx'   },
+  { id: 'hsi',   name: 'Hang Seng',          region: 'Asia-Pacific',yahoo: '^HSI',       stooq: '^hsi'   },
+  { id: 'sse',   name: 'Shanghai Composite', region: 'Asia-Pacific',yahoo: '000001.SS',  stooq: '^shc'   },
+  { id: 'kospi', name: 'KOSPI',              region: 'Asia-Pacific',yahoo: '^KS11',      stooq: '^kospi' },
+  { id: 'asx',   name: 'ASX 200',            region: 'Asia-Pacific',yahoo: '^AXJO',      stooq: '^asx'   },
+];
+const STOCK_CACHE_MS = 3 * 60 * 1000;
+let stockCache = { data: null, fetchedAt: 0 };
+const stockHistory = {};
+
+function pushHistory(id, t, c) {
+  if (c == null || !isFinite(c)) return;
+  const h = (stockHistory[id] = stockHistory[id] || []);
+  const last = h[h.length - 1];
+  if (last && t - last.t < 60 * 1000) return;
+  h.push({ t, c });
+  if (h.length > 300) h.shift();
+}
+
+async function fetchYahoo(symbol) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1mo&interval=1d`;
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 9000);
+  try {
+    const r = await fetch(url, {
+      signal: ctl.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        Accept: 'application/json',
+      },
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    const chartRes = j.chart && j.chart.result && j.chart.result[0];
+    if (!chartRes) throw new Error((j.chart && j.chart.error && j.chart.error.description) || 'no chart result');
+    const meta = chartRes.meta || {};
+    const price = meta.regularMarketPrice;
+    const prevClose = meta.chartPreviousClose != null ? meta.chartPreviousClose : meta.previousClose;
+    if (price == null) throw new Error('no regularMarketPrice in response');
+    const closes = (chartRes.indicators && chartRes.indicators.quote && chartRes.indicators.quote[0] && chartRes.indicators.quote[0].close) || [];
+    const stamps = chartRes.timestamp || [];
+    const history = stamps.map((ts, i) => ({ t: ts * 1000, c: closes[i] })).filter((p) => p.c != null);
+    const change = prevClose != null ? price - prevClose : null;
+    const changePct = prevClose ? (change / prevClose) * 100 : null;
+    return { price, change, changePct, history, source: 'yahoo' };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function fetchStooq(symbol) {
+  const url = `https://stooq.com/q/l/?s=${encodeURIComponent(symbol)}&f=sd2t2ohlc&h&e=csv`;
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 9000);
+  try {
+    const r = await fetch(url, { signal: ctl.signal, headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const text = await r.text();
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) throw new Error('no data row');
+    const cols = lines[1].split(',');
+    const close = parseFloat(cols[6]);
+    const open = parseFloat(cols[3]);
+    if (!isFinite(close) || close <= 0) throw new Error('bad/empty quote: ' + text.slice(0, 80));
+    const change = isFinite(open) ? close - open : null;
+    const changePct = isFinite(open) && open ? (change / open) * 100 : null;
+    return { price: close, change, changePct, history: [], source: 'stooq' };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+// CSE's aspiData/snpData response shape was never published anywhere found
+// during research, so this walks the JSON tree looking for plausible
+// value/change fields by key name rather than assuming a fixed schema.
+function extractCse(json) {
+  let value = null, change = null, changePct = null;
+  const seen = new Set();
+  (function walk(o) {
+    if (!o || typeof o !== 'object' || seen.has(o)) return;
+    seen.add(o);
+    for (const [k, v] of Object.entries(o)) {
+      const key = k.toLowerCase();
+      if (typeof v === 'number') {
+        if (value == null && /(value|index|close|point|aspi|snp)/.test(key) && !/percent|pct/.test(key)) value = v;
+        if (change == null && /change/.test(key) && !/percent|pct/.test(key)) change = v;
+        if (changePct == null && /(percent|pct)/.test(key)) changePct = v;
+      } else if (typeof v === 'object') {
+        walk(v);
+      }
+    }
+  })(json);
+  return { value, change, changePct };
+}
+
+async function fetchCse(endpoint) {
+  const url = `https://www.cse.lk/api/${endpoint}`;
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 9000);
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      signal: ctl.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Origin: 'https://www.cse.lk',
+        Referer: 'https://www.cse.lk/',
+      },
+      body: '',
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const json = await r.json();
+    const { value, change, changePct } = extractCse(json);
+    if (value == null) throw new Error('could not locate an index value in the CSE response');
+    return { price: value, change, changePct, history: [], source: 'cse' };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function fetchOneIndex(def) {
+  const attempts = [];
+  if (def.cse) attempts.push(() => fetchCse(def.cse));
+  if (def.yahoo) attempts.push(() => fetchYahoo(def.yahoo));
+  if (def.stooq) attempts.push(() => fetchStooq(def.stooq));
+  let lastErr = null;
+  for (const attempt of attempts) {
+    try {
+      const r = await attempt();
+      pushHistory(def.id, Date.now(), r.price);
+      if (!r.history || !r.history.length) r.history = stockHistory[def.id] || [];
+      return { id: def.id, name: def.name, region: def.region, ...r, error: null };
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  return {
+    id: def.id, name: def.name, region: def.region, price: null, change: null, changePct: null,
+    history: stockHistory[def.id] || [], source: 'unavailable', error: lastErr ? lastErr.message : 'no source configured',
+  };
+}
+
+async function refreshStockCache() {
+  const results = await Promise.allSettled(STOCK_INDICES.map(fetchOneIndex));
+  const indices = {};
+  results.forEach((r, i) => {
+    const def = STOCK_INDICES[i];
+    indices[def.id] = r.status === 'fulfilled'
+      ? r.value
+      : { id: def.id, name: def.name, region: def.region, price: null, source: 'unavailable', error: r.reason && r.reason.message };
+  });
+  stockCache = { data: indices, fetchedAt: Date.now() };
+  return indices;
+}
+
+async function apiStocks(req, res) {
+  try {
+    const stale = !stockCache.data || Date.now() - stockCache.fetchedAt > STOCK_CACHE_MS;
+    if (stale) await refreshStockCache().catch(() => {});
+    if (!stockCache.data) {
+      sendJSON(res, 200, { indices: {}, error: 'stock data unavailable' });
+      return;
+    }
+    sendJSON(res, 200, { indices: stockCache.data, fetchedAt: stockCache.fetchedAt });
+  } catch (err) {
+    sendJSON(res, 200, { indices: {}, error: err.message });
+  }
+}
+
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
 
@@ -299,6 +501,7 @@ const server = http.createServer(async (req, res) => {
     if (req.url === '/api/macro') return apiMacro(req, res);
     if (req.url === '/api/news') return apiNews(req, res);
     if (req.url === '/api/etf') return apiEtf(req, res);
+    if (req.url === '/api/stocks') return apiStocks(req, res);
     if (req.url === '/api/predict' && req.method === 'POST') return apiPredict(req, res);
 
     // Everything else serves the single-page app.
