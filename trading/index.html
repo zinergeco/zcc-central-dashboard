@@ -157,6 +157,8 @@ canvas.spark{width:100%;height:46px;display:block;margin:4px 0 8px}
 #chart{width:100%;height:330px;display:block;border:1px solid var(--line);background:rgba(0,10,16,.6)}
 .tfbtn{font-family:var(--mono);font-size:11px;background:none;border:1px solid var(--line);color:var(--dim);padding:4px 10px;cursor:pointer;margin-right:4px}
 .tfbtn.on{color:var(--cyan);border-color:var(--cyan)}
+.fbtn{font-family:var(--mono);font-size:11px;background:none;border:1px solid var(--line);color:var(--dim);padding:4px 10px;cursor:pointer;margin-right:4px;margin-bottom:4px}
+.fbtn.on{color:var(--cyan);border-color:var(--cyan);box-shadow:0 0 8px rgba(0,240,255,.25) inset}
 .plan{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}
 .plan div{border:1px solid var(--line);padding:10px;background:rgba(0,0,0,.5)}
 .plan b{display:block;font-family:var(--hud);font-size:9px;letter-spacing:2px;color:var(--dim);margin-bottom:4px;font-weight:500}
@@ -236,7 +238,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
 
 <div class="app">
 <header>
-  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.2</small></div>
+  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.3</small></div>
   <div class="hdr-mid">
     <button class="sect on" data-sect="crypto">◈ CRYPTO FUTURES</button>
     <button class="sect" data-sect="stocks">◇ STOCKS &amp; ETF<span class="lock">PHASE 2</span></button>
@@ -258,6 +260,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
   <button data-v="intel">✦ INTEL &amp; NEWS</button>
   <button data-v="capital">◆ RISK &amp; CAPITAL</button>
   <button data-v="sources">⟁ DATA SOURCES</button>
+  <button data-v="flow">⬡ FLOW INTEL</button>
 </nav>
 
 <section class="view on" id="v-command">
@@ -341,6 +344,35 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
     </div>
   </div>
 </section>
+
+<section class="view" id="v-flow">
+  <div class="intel">
+    <div class="panel">
+      <div class="ptitle">VOLUME &amp; LIQUIDITY GAPS <span class="r" id="volGapMeta">—</span></div>
+      <div class="dim" style="font-size:13px;margin-bottom:8px">Price zones the selected coin has traded through on unusually low volume (a.k.a. fair-value gaps) — built from the kline history already on this page, not a new data source. Thin zones are where price tends to move fastest.</div>
+      <div id="volGapCoinSel"></div>
+      <div id="volGapTfSel" style="margin:8px 0"></div>
+      <canvas id="volGapChart" style="width:100%;height:230px;display:block"></canvas>
+      <div id="volGapList" style="margin-top:10px"></div>
+    </div>
+    <div>
+      <div class="panel">
+        <div class="ptitle">LIVE ETF FLOWS <span class="r" id="etfMeta">—</span></div>
+        <div class="regime" style="grid-template-columns:repeat(3,1fr)" id="etfCards"></div>
+        <canvas id="etfHistChart" style="width:100%;height:110px;display:block;margin-top:12px"></canvas>
+        <div id="etfFundSel" style="margin-top:10px"></div>
+        <div id="etfFundTbl" style="margin-top:6px"></div>
+        <div class="dim" style="font-size:11px;margin-top:8px">Source: <a href="https://farside.co.uk" target="_blank" rel="noopener">Farside Investors</a> · refreshes every 30 min but the underlying table only updates once per US trading day. XRP has no US spot ETF on this feed — use the manual override in the Intel tab for that one.</div>
+      </div>
+    </div>
+  </div>
+  <div class="panel" style="margin-top:14px">
+    <div class="ptitle">WHALE TRADES · TIER-1 MAJORS <span class="r" id="whaleMeta">—</span></div>
+    <div class="dim" style="font-size:13px;margin-bottom:8px">Individual large taker trades straight from Binance's own public trade feed for BTC/ETH/XRP/SOL/LTC/BNB — not on-chain wallet transfers, but a free, same-exchange proxy for aggressive big-ticket flow.</div>
+    <div id="whaleThreshSel" style="margin-bottom:10px"></div>
+    <div id="whaleTable"></div>
+  </div>
+</section>
 </div>
 
 <!-- ===================== STOCKS ===================== -->
@@ -352,7 +384,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
   </div>
 </div>
 
-<footer>ZCC Trading · Quant Nexus v1.2 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
+<footer>ZCC Trading · Quant Nexus v1.3 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
 </div>
 
 <div id="shade"></div>
@@ -406,8 +438,9 @@ const AGENTS=[
 /* ============================================================
    STATE
 ============================================================ */
-const S={live:false,hosted:false,etfAuto:{},coins:{},fng:null,fngPrev:null,global:null,news:[],etf:{BTC:null,ETH:null,SOL:null,XRP:null},
-  src:{},logs:[],cap:{bal:1000,riskPct:1,maxPos:4,dll:4,minConf:55},tf:'1h',openCoin:null,lastScore:0};
+const S={live:false,hosted:false,etfAuto:{},etfRaw:null,etfFund:'BTC',coins:{},fng:null,fngPrev:null,global:null,news:[],etf:{BTC:null,ETH:null,SOL:null,XRP:null},
+  src:{},logs:[],cap:{bal:1000,riskPct:1,maxPos:4,dll:4,minConf:55},tf:'1h',openCoin:null,lastScore:0,
+  flowCoin:'BTC',flowTf:'4h',whales:[],whaleMinUsd:50000};
 COINS.forEach(k=>S.coins[k.c]={...k,sym:null,dataSym:null,quote:'USDC',fallback:false,price:null,prev:null,chg:0,vol:0,funding:null,
   k15:[],k1h:[],k4h:[],k12h:[],k1d:[],oi:[],lsr:null,taker:null,sig:null,techRating:null,predict:null});
 try{const c=JSON.parse(localStorage.getItem('qn_cap')||'null');if(c)Object.assign(S.cap,c);const e=JSON.parse(localStorage.getItem('qn_etf')||'null');if(e)Object.assign(S.etf,e);}catch(e){}
@@ -524,8 +557,115 @@ async function loadNews(){
   catch(e){setSrc('news','err',e.message);}
   scoreNews();renderNews();
 }
-async function loadEtf(){if(!S.hosted)return;try{const e=await getJSON('/api/etf',30000);S.etfAuto={};let d=null;['BTC','ETH','SOL'].forEach(k=>{if(e[k]&&e[k].net!=null){S.etfAuto[k]=e[k].net;d=d||e[k].date;}});S.etfDate=d;setSrc('etf','ok','auto · '+Object.entries(S.etfAuto).map(([k,v])=>k+' '+(v>0?'+':'')+v.toFixed(1)+'M').join(' · ')+(d?' · day '+d:''));
-  const t=$('#etfAutoTxt');if(t)t.innerHTML='Auto-feed (Farside, day '+d+'): '+Object.entries(S.etfAuto).map(([k,v])=>`<b class="${v>=0?'up':'dn'}">${k} ${v>0?'+':''}${v.toFixed(1)}M</b>`).join(' · ')+'.';}catch(e){setSrc('etf','err','auto feed failed; manual entry still works');}}
+async function loadEtf(){if(!S.hosted)return;try{const e=await getJSON('/api/etf',30000);S.etfRaw=e;S.etfAuto={};let d=null;['BTC','ETH','SOL'].forEach(k=>{if(e[k]&&e[k].net!=null){S.etfAuto[k]=e[k].net;d=d||e[k].date;}});S.etfDate=d;setSrc('etf','ok','auto · '+Object.entries(S.etfAuto).map(([k,v])=>k+' '+(v>0?'+':'')+v.toFixed(1)+'M').join(' · ')+(d?' · day '+d:''));
+  const t=$('#etfAutoTxt');if(t)t.innerHTML='Auto-feed (Farside, day '+d+'): '+Object.entries(S.etfAuto).map(([k,v])=>`<b class="${v>=0?'up':'dn'}">${k} ${v>0?'+':''}${v.toFixed(1)}M</b>`).join(' · ')+'.';
+  if(flowTabActive())renderEtfPanel();}catch(e){setSrc('etf','err','auto feed failed; manual entry still works');}}
+
+/* ============================================================
+   FLOW INTEL — volume/liquidity gaps, whale trades, ETF flows
+============================================================ */
+function flowTabActive(){const el=$('#v-flow');return!!(el&&el.classList.contains('on'));}
+
+function volumeProfile(K,bins=26){
+  if(!K||K.length<10)return null;
+  const recent=K.slice(-140);let lo=Infinity,hi=-Infinity;
+  recent.forEach(b=>{lo=Math.min(lo,b.l);hi=Math.max(hi,b.h);});
+  if(!isFinite(lo)||!isFinite(hi)||hi<=lo)return null;
+  const step=(hi-lo)/bins;const vols=new Array(bins).fill(0);
+  recent.forEach(b=>{const tp=(b.h+b.l+b.c)/3;let idx=Math.floor((tp-lo)/step);idx=clamp(idx,0,bins-1);vols[idx]+=b.v;});
+  const maxV=Math.max(...vols);const avgV=vols.reduce((a,b)=>a+b,0)/bins;const gapThresh=avgV*0.25;
+  const rowsOut=vols.map((v,i)=>({priceLo:lo+i*step,priceHi:lo+(i+1)*step,vol:v,pct:maxV?v/maxV:0,isGap:v<gapThresh}));
+  return{lo,hi,step,bins:rowsOut,maxV,avgV,candles:recent.length};
+}
+function describeGaps(prof){
+  if(!prof)return'<div class="dim">Gathering candle history for this timeframe…</div>';
+  const runs=[];let cur=null;
+  prof.bins.forEach(b=>{if(b.isGap){if(!cur)cur={lo:b.priceLo,hi:b.priceHi};else cur.hi=b.priceHi;}else if(cur){runs.push(cur);cur=null;}});
+  if(cur)runs.push(cur);
+  if(!runs.length)return'<div class="dim">No significant liquidity gaps in the visible range — volume is evenly distributed across price.</div>';
+  return runs.slice(0,6).map(r=>`<div style="padding:5px 0;border-bottom:1px solid rgba(0,240,255,.07);font-size:13px"><b class="dn">GAP</b> ${fmtP(r.lo)} – ${fmtP(r.hi)} <span class="dim">· thin trading history here, price can move through it fast</span></div>`).join('');
+}
+function drawVolGap(prof){
+  const c=$('#volGapChart');if(!c)return;const dpr=devicePixelRatio||1;const W=c.clientWidth,H=c.clientHeight;c.width=W*dpr;c.height=H*dpr;const g=c.getContext('2d');g.scale(dpr,dpr);g.clearRect(0,0,W,H);
+  if(!prof){g.fillStyle='#5f8796';g.font='12px JetBrains Mono';g.fillText('Gathering candle history…',10,20);return;}
+  const n=prof.bins.length,barH=(H-8)/n,maxBarW=W-92;
+  prof.bins.forEach((b,i)=>{const y=H-8-(i+1)*barH;const w=Math.max(2,b.pct*maxBarW);
+    g.fillStyle=b.isGap?'rgba(255,56,96,.55)':'rgba(0,240,255,.45)';g.fillRect(84,y,w,Math.max(1,barH-2));
+    g.fillStyle='#5f8796';g.font='9px JetBrains Mono';g.textAlign='right';g.fillText(fmtP((b.priceLo+b.priceHi)/2),80,y+barH/2+3);});
+  g.textAlign='left';
+}
+async function loadWhaleTrades(){
+  const majors=COINS.filter(k=>k.lev===15);
+  const results=await Promise.allSettled(majors.map(async k=>{
+    const co=S.coins[k.c];if(!co.sym)return[];
+    const trades=await getJSON(`${FAPI}/fapi/v1/aggTrades?symbol=${co.sym}&limit=200`,8000);
+    return trades.filter(t=>(+t.p)*(+t.q)>=S.whaleMinUsd).map(t=>({id:k.c+'-'+t.a,c:k.c,side:t.m?'SELL':'BUY',price:+t.p,qty:+t.q,notional:(+t.p)*(+t.q),t:t.T}));
+  }));
+  const fresh=results.flatMap(r=>r.status==='fulfilled'?r.value:[]);
+  const okCount=results.filter(r=>r.status==='fulfilled').length;
+  if(!okCount){setSrc('whale','err','Binance aggTrades feed unreachable');return;}
+  const seen=new Set(S.whales.map(w=>w.id));
+  fresh.forEach(w=>{if(!seen.has(w.id)){S.whales.unshift(w);seen.add(w.id);}});
+  S.whales.sort((a,b)=>b.t-a.t);S.whales=S.whales.slice(0,150);
+  setSrc('whale','ok',S.whales.length+' tracked ≥$'+(S.whaleMinUsd/1000).toFixed(0)+'k · '+majors.length+' majors');
+  if(flowTabActive())renderWhaleTable();
+}
+function renderWhaleTable(){
+  const el=$('#whaleTable');if(!el)return;
+  const thEl=$('#whaleThreshSel');
+  if(thEl)thEl.innerHTML=[25000,50000,100000,250000].map(v=>`<button class="fbtn ${S.whaleMinUsd===v?'on':''}" data-th="${v}">≥$${(v/1000).toFixed(0)}K</button>`).join('');
+  document.querySelectorAll('#whaleThreshSel .fbtn').forEach(b=>b.onclick=()=>{S.whaleMinUsd=+b.dataset.th;S.whales=[];renderWhaleTable();loadWhaleTrades();});
+  $('#whaleMeta').textContent=S.whales.length?S.whales.length+' trades tracked':'listening…';
+  if(!S.whales.length){el.innerHTML='<div class="dim">No trades above the $'+(S.whaleMinUsd/1000).toFixed(0)+'k threshold yet this session — tracking live, check back shortly.</div>';return;}
+  const totalBuy=S.whales.reduce((a,w)=>a+(w.side==='BUY'?w.notional:0),0);
+  const totalSell=S.whales.reduce((a,w)=>a+(w.side==='SELL'?w.notional:0),0);
+  const net=totalBuy-totalSell;
+  el.innerHTML=`<div style="margin-bottom:10px;font-family:var(--mono);font-size:13px">Net flow (last ${S.whales.length} trades): <b class="${net>=0?'up':'dn'}">${net>=0?'+':'−'}$${Math.abs(net/1000).toFixed(0)}k</b> <span class="dim">· ${fmtBig(totalBuy)} buy / ${fmtBig(totalSell)} sell</span></div>
+  <table><tr><th>TIME</th><th>COIN</th><th>SIDE</th><th>PRICE</th><th>QTY</th><th>NOTIONAL</th></tr>
+  ${S.whales.slice(0,40).map(w=>`<tr><td class="dim">${new Date(w.t).toLocaleTimeString('en-GB')}</td><td><b>${w.c}</b></td><td class="${w.side==='BUY'?'up':'dn'}">${w.side}</td><td>${fmtP(w.price)}</td><td>${w.qty.toPrecision(4)}</td><td class="${w.side==='BUY'?'up':'dn'}">$${(w.notional/1000).toFixed(1)}k</td></tr>`).join('')}
+  </table>`;
+}
+function drawEtfHistory(sel){
+  const c=$('#etfHistChart');if(!c)return;const dpr=devicePixelRatio||1;const W=c.clientWidth,H=c.clientHeight;c.width=W*dpr;c.height=H*dpr;const g=c.getContext('2d');g.scale(dpr,dpr);g.clearRect(0,0,W,H);
+  if(!sel||!sel.history||!sel.history.length){g.fillStyle='#5f8796';g.font='11px JetBrains Mono';g.fillText('No history yet',10,20);return;}
+  const hist=sel.history.slice(-15);const vals=hist.map(h=>h.total||0);const mx=Math.max(1,...vals.map(v=>Math.abs(v)));
+  const bw=(W-10)/hist.length,mid=H/2;
+  hist.forEach((h,i)=>{const v=h.total||0;const bh=Math.abs(v)/mx*(H/2-10);const x=10+i*bw;
+    g.fillStyle=v>=0?'rgba(0,255,156,.6)':'rgba(255,56,96,.6)';g.fillRect(x,v>=0?mid-bh:mid,Math.max(2,bw*.7),Math.max(1,bh));});
+  g.strokeStyle='rgba(0,240,255,.2)';g.beginPath();g.moveTo(0,mid);g.lineTo(W,mid);g.stroke();
+}
+function renderEtfPanel(){
+  const cardsEl=$('#etfCards');if(!cardsEl)return;
+  const e=S.etfRaw,coins=['BTC','ETH','SOL'];
+  if(!e){cardsEl.innerHTML='<div class="dim">Waiting on the Farside auto-feed (refreshes every 30 min)…</div>';$('#etfMeta').textContent='—';return;}
+  $('#etfMeta').textContent='Farside · day '+(S.etfDate||'—');
+  cardsEl.innerHTML=coins.map(c=>{const d=e[c];if(!d||d.net==null)return`<div class="stat"><div class="k">${c} SPOT ETF</div><div class="v dim">—</div><div class="s">no data</div></div>`;
+    return`<div class="stat"><div class="k">${c} SPOT ETF NET</div><div class="v ${d.net>=0?'up':'dn'}">${d.net>=0?'+$':'−$'}${Math.abs(d.net).toFixed(1)}M</div><div class="s">day ${d.date||'—'}</div></div>`;}).join('');
+  const fundSel=$('#etfFundSel');
+  if(fundSel)fundSel.innerHTML=coins.filter(c=>e[c]&&e[c].funds).map(c=>`<button class="fbtn ${S.etfFund===c?'on':''}" data-ef="${c}">${c}</button>`).join('');
+  document.querySelectorAll('#etfFundSel .fbtn').forEach(b=>b.onclick=()=>{S.etfFund=b.dataset.ef;renderEtfPanel();});
+  const sel=e[S.etfFund];
+  if(sel&&sel.funds&&sel.perFund){
+    $('#etfFundTbl').innerHTML='<table><tr><th>ISSUER</th><th>NET FLOW · LATEST DAY</th></tr>'+sel.funds.map((f,i)=>{const v=sel.perFund[i];return`<tr><td>${f}</td><td class="${v==null?'dim':v>=0?'up':'dn'}">${v==null?'—':(v>=0?'+$':'−$')+Math.abs(v).toFixed(1)+'M'}</td></tr>`;}).join('')+'</table>';
+  }else{$('#etfFundTbl').innerHTML='<div class="dim">No per-issuer breakdown yet.</div>';}
+  drawEtfHistory(sel);
+}
+function renderFlowIntel(){
+  const coinSel=$('#volGapCoinSel');
+  if(coinSel)coinSel.innerHTML=COINS.map(k=>`<button class="fbtn ${S.flowCoin===k.c?'on':''}" data-fc="${k.c}">${k.c}</button>`).join('');
+  document.querySelectorAll('#volGapCoinSel .fbtn').forEach(b=>b.onclick=()=>{S.flowCoin=b.dataset.fc;renderFlowIntel();});
+  const tfSel=$('#volGapTfSel');
+  if(tfSel)tfSel.innerHTML=['1h','4h','1D'].map(t=>`<button class="fbtn ${S.flowTf===t?'on':''}" data-ftf="${t}">${t}</button>`).join('');
+  document.querySelectorAll('#volGapTfSel .fbtn').forEach(b=>b.onclick=()=>{S.flowTf=b.dataset.ftf;renderFlowIntel();});
+  const co=S.coins[S.flowCoin];
+  const K=co?(S.flowTf==='1h'?co.k1h:S.flowTf==='1D'?co.k1d:co.k4h):[];
+  const prof=volumeProfile(K);
+  $('#volGapMeta').textContent=prof?(S.flowCoin+' · '+S.flowTf+' · '+prof.candles+' candles'):'gathering data…';
+  $('#volGapList').innerHTML=describeGaps(prof);
+  requestAnimationFrame(()=>drawVolGap(prof));
+  renderWhaleTable();
+  renderEtfPanel();
+}
 let ws;
 function openWS(){
   const streams=COINS.map(k=>S.coins[k.c].sym).filter(Boolean).map(s=>s.toLowerCase()+'@ticker').join('/');
@@ -954,7 +1094,8 @@ const SOURCES=[
  ['fng','Fear & Greed Index','api.alternative.me/fng (via /api/macro)','Macro sentiment regime','2 min'],
  ['cg','CoinGecko Global','api.coingecko.com/api/v3/global (via /api/macro)','Total market cap, BTC / ETH dominance and volume','2 min'],
  ['news','Newswire · 7 outlets','CoinDesk · Cointelegraph · Decrypt · The Block · Bitcoin Magazine · CryptoSlate RSS + CryptoCompare (via /api/news)','Headlines de-duplicated, sentiment-scored and tagged to coins','4 min'],
- ['etf','US Spot ETF Flows','farside.co.uk btc · eth · sol (via /api/etf)','Daily net flows (US$m) feed the Macro & Flow agent; manual override in the Intel tab','30 min']];
+ ['etf','US Spot ETF Flows','farside.co.uk btc · eth · sol (via /api/etf)','Daily net flows (US$m) feed the Macro & Flow agent; manual override in the Intel tab','30 min'],
+ ['whale','Whale Trade Feed','/fapi/v1/aggTrades · tier-1 majors','Large taker trades ≥ threshold shown live in the Flow Intel tab','20 s']];
 function renderSources(){
   if(!S.hosted)setSrc('etf',(S.etf.BTC!=null&&S.etf.BTC!=='')?'ok':'wait',(S.etf.BTC!=null&&S.etf.BTC!=='')?'manual values injected':'enter in Intel tab');
   $('#srcTable').innerHTML='<table><tr><th>SOURCE</th><th>ENDPOINT</th><th>FEEDS</th><th>REFRESH</th><th>STATUS</th><th>LAST</th></tr>'+SOURCES.map(([id,n,e,f,r])=>{const s=S.src[id]||{status:'wait'};const cls={ok:'ok',wait:'wait',blk:'blk',err:'err'}[s.status]||'wait';const lbl={ok:'LIVE',wait:'PENDING',blk:'SANDBOXED',err:'ERROR'}[s.status]||'PENDING';
@@ -1045,7 +1186,7 @@ async function liveCycle(full){
   try{await loadTickers();await loadKlines();if(full){await loadPositioning();}analyseAll();}catch(e){log('chief','Cycle error: '+e.message,'dn');}
 }
 async function boot(){
-  const lines=['> ZINERGE QUANT NEXUS v1.2','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
+  const lines=['> ZINERGE QUANT NEXUS v1.3','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
   const bl=$('#bootlog');for(const l of lines){bl.textContent+=l+'\n';await sleep(220);}
   initBg();buildCards();buildAgents();renderCapital();renderSources();
   try{const h=await getJSON('/api/health',3000);S.hosted=!!(h&&h.ok);}catch(e){S.hosted=false;}
@@ -1062,8 +1203,8 @@ async function boot(){
   if(S.live){md.className='mode live';$('#modeTxt').textContent='LIVE · BINANCE';$('#simbar').style.display='none';log('chief','Live uplink confirmed. Resolving contracts…','up');
     try{await resolveSymbols();}catch(e){log('chief','exchangeInfo failed: '+e.message,'dn');}
     await Promise.all([loadMacro(),loadTickers()]);COINS.forEach(k=>tickCard(S.coins[k.c]));
-    await loadEtf();await loadKlines();await loadPositioning();analyseAll();loadNews().then(analyseAll);openWS();
-    let n=0;setInterval(()=>{n++;liveCycle(n%5===0);},60e3);setInterval(()=>{loadMacro();loadNews();},S.hosted?120e3:300e3);setInterval(loadEtf,30*60e3);
+    await loadEtf();await loadKlines();await loadPositioning();analyseAll();loadNews().then(analyseAll);openWS();loadWhaleTrades();
+    let n=0;setInterval(()=>{n++;liveCycle(n%5===0);},60e3);setInterval(()=>{loadMacro();loadNews();},S.hosted?120e3:300e3);setInterval(loadEtf,30*60e3);setInterval(loadWhaleTrades,20e3);
   }else{
     md.className='mode sim';$('#modeTxt').textContent='SIMULATION';$('#simbar').style.display='block';
     log('chief','Outside network blocked by the host sandbox. Running the engine on a simulated feed.','am');
@@ -1075,9 +1216,9 @@ async function boot(){
 
 /* UI wiring */
 setInterval(()=>{$('#clock').textContent=new Date().toLocaleTimeString('en-GB')+' '+(Intl.DateTimeFormat().resolvedOptions().timeZone.split('/').pop()||'');},1000);
-const VIEWS=['command','agents','intel','capital','sources'];
+const VIEWS=['command','agents','intel','capital','sources','flow'];
 function show(v){if(!VIEWS.includes(v))v='command';document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('on',x.id==='v-'+v));
-  if(v==='command')setTimeout(()=>COINS.forEach(k=>drawSpark(S.coins[k.c])),30);if(v==='sources')renderSources();if(v==='capital')renderCapital();try{if(location.hash.slice(1)!==v)history.replaceState(null,'','#'+v);}catch(e){}}
+  if(v==='command')setTimeout(()=>COINS.forEach(k=>drawSpark(S.coins[k.c])),30);if(v==='sources')renderSources();if(v==='capital')renderCapital();if(v==='flow')renderFlowIntel();try{if(location.hash.slice(1)!==v)history.replaceState(null,'','#'+v);}catch(e){}}
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>show(b.dataset.v));
 addEventListener('hashchange',()=>show(location.hash.slice(1)));
 document.querySelectorAll('.sect').forEach(b=>b.onclick=()=>{document.querySelectorAll('.sect').forEach(x=>x.classList.toggle('on',x===b));$('#sect-crypto').style.display=b.dataset.sect==='crypto'?'':'none';$('#sect-stocks').style.display=b.dataset.sect==='stocks'?'':'none';});
