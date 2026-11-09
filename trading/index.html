@@ -229,6 +229,17 @@ td.mono{font-family:var(--mono);font-size:11.5px}
 .simbar b{font-family:var(--hud);font-size:11px;letter-spacing:2px;margin-right:8px}
 footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(--line);padding-top:12px;line-height:1.6}
 
+/* STOCKS section — same components, re-themed via scoped custom properties:
+   amber/violet instead of crypto's cyan/magenta, still dark. */
+#sect-stocks{--cyan:#ffb000;--mag:#8a5cff;--line:rgba(255,176,0,.16);--line2:rgba(255,176,0,.4);}
+.idxgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.idx-card{background:linear-gradient(160deg,rgba(24,16,6,.85),rgba(0,0,0,.85));border:1px solid var(--line);padding:13px;position:relative}
+.idx-card .nm{font-family:var(--hud);font-size:13px;letter-spacing:1px;padding-right:70px}
+.idx-card .rg{font-family:var(--mono);font-size:10px;color:var(--dim)}
+.idx-card .pr{font-family:var(--mono);font-size:19px;margin:7px 0 2px}
+.idx-card canvas{width:100%;height:38px;display:block;margin:6px 0 2px}
+.idx-card .src{position:absolute;right:11px;top:13px;font-size:9px}
+
 @media (max-width:1000px){.hero,.agents-wrap,.intel,.risk{grid-template-columns:1fr}.hdr-mid{order:3;flex-basis:100%}.plan{grid-template-columns:1fr 1fr}.vote{grid-template-columns:120px 1fr 44px}}
 </style>
 </head>
@@ -238,10 +249,10 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
 
 <div class="app">
 <header>
-  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.3</small></div>
+  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.4</small></div>
   <div class="hdr-mid">
     <button class="sect on" data-sect="crypto">◈ CRYPTO FUTURES</button>
-    <button class="sect" data-sect="stocks">◇ STOCKS &amp; ETF<span class="lock">PHASE 2</span></button>
+    <button class="sect" data-sect="stocks">◇ GLOBAL STOCKS</button>
   </div>
   <div class="hdr-right">
     <div id="mode" class="mode sim"><span class="dot"></span><span id="modeTxt">CONNECTING</span></div>
@@ -377,14 +388,16 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
 
 <!-- ===================== STOCKS ===================== -->
 <div id="sect-stocks" style="display:none">
-  <div class="panel locked" style="margin-top:14px">
-    <div class="hex">◇</div>
-    <div style="font-family:var(--hud);letter-spacing:4px;font-size:18px">STOCKS &amp; ETF MODULE</div>
-    <div class="dim" style="max-width:520px;line-height:1.6">Phase 2: equities and ETFs, sector rotation, earnings calendar and macro (rates, CPI, DXY) with the same multi-agent engine. The slot is reserved here and the agent framework is already built to accept new asset classes.</div>
+  <div id="stockBody">
+    <div class="panel locked" style="margin-top:14px">
+      <div class="hex" style="background:linear-gradient(135deg,var(--cyan),var(--mag))">◇</div>
+      <div style="font-family:var(--hud);letter-spacing:4px;font-size:18px">LOADING GLOBAL INDICES…</div>
+      <div class="dim" style="max-width:520px;line-height:1.6">Nasdaq, S&amp;P 500, NYSE, FTSE 100, DAX, CAC 40, Nikkei 225, Hang Seng, Shanghai, Sensex/Nifty, ASX 200, TSX, KOSPI and the Colombo Stock Exchange — pulled server-side, no API key.</div>
+    </div>
   </div>
 </div>
 
-<footer>ZCC Trading · Quant Nexus v1.3 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
+<footer>ZCC Trading · Quant Nexus v1.4 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
 </div>
 
 <div id="shade"></div>
@@ -500,6 +513,21 @@ function vwap(k,n=24){const win=k.slice(-n);let pv=0,vol=0;win.forEach(b=>{const
 function pivotPoints(k1d){if(!k1d||k1d.length<2)return null;const prev=k1d[k1d.length-2];const pp=(prev.h+prev.l+prev.c)/3;
   return{pp,r1:2*pp-prev.l,s1:2*pp-prev.h,r2:pp+(prev.h-prev.l),s2:pp-(prev.h-prev.l),r3:prev.h+2*(pp-prev.l),s3:prev.l-2*(prev.h-pp)};}
 function obv(k){const o=[0];for(let i=1;i<k.length;i++){o.push(o[i-1]+(k[i].c>k[i-1].c?k[i].v:k[i].c<k[i-1].c?-k[i].v:0));}return o;}
+/* strengthened analysis — five more independent factors, all from klines already in hand, zero new API calls */
+function supertrend(k,n=10,mult=3){
+  const tr=k.map((b,i)=>i?Math.max(b.h-b.l,Math.abs(b.h-k[i-1].c),Math.abs(b.l-k[i-1].c)):b.h-b.l);const a=ema(tr,n);
+  const fub=[],flb=[],dir=[];
+  for(let i=0;i<k.length;i++){const mid=(k[i].h+k[i].l)/2;const bub=mid+mult*a[i],blb=mid-mult*a[i];
+    if(i===0){fub.push(bub);flb.push(blb);dir.push(1);continue;}
+    fub.push((bub<fub[i-1]||k[i-1].c>fub[i-1])?bub:fub[i-1]);flb.push((blb>flb[i-1]||k[i-1].c<flb[i-1])?blb:flb[i-1]);
+    let d=dir[i-1];if(k[i].c>fub[i-1])d=1;else if(k[i].c<flb[i-1])d=-1;dir.push(d);}
+  return{dir,upper:fub,lower:flb};
+}
+function donchian(k,n=20){return k.map((_,i)=>{if(i<n-1)return{u:null,l:null};const win=k.slice(i-n+1,i+1);return{u:Math.max(...win.map(b=>b.h)),l:Math.min(...win.map(b=>b.l))};});}
+function keltner(k,n=20,mult=2){const c=k.map(b=>b.c);const mid=ema(c,n);const a=atr(k,n);return mid.map((m,i)=>({u:m+mult*a[i],l:m-mult*a[i]}));}
+function williamsR(k,n=14){return k.map((_,i)=>{if(i<n-1)return null;const win=k.slice(i-n+1,i+1);const hh=Math.max(...win.map(b=>b.h)),ll=Math.min(...win.map(b=>b.l));return hh===ll?-50:(hh-k[i].c)/(hh-ll)*-100;});}
+function cmf(k,n=20){const mfv=k.map(b=>{const range=b.h-b.l;const m=range?((b.c-b.l)-(b.h-b.c))/range:0;return m*b.v;});
+  return k.map((_,i)=>{if(i<n-1)return null;const sumMfv=mfv.slice(i-n+1,i+1).reduce((a,b)=>a+b,0);const sumV=k.slice(i-n+1,i+1).reduce((a,b)=>a+b.v,0);return sumV?sumMfv/sumV:0;});}
 
 /* ============================================================
    DATA — LIVE
@@ -666,6 +694,51 @@ function renderFlowIntel(){
   renderWhaleTable();
   renderEtfPanel();
 }
+
+/* ============================================================
+   GLOBAL STOCKS — ~18 world indices incl. Colombo ASPI/SL20, server-proxied
+============================================================ */
+const STOCK_REGIONS=['Americas','Europe','South Asia','Asia-Pacific'];
+const S_STOCK={region:'Americas',indices:{},fetchedAt:0};
+function stocksTabActive(){const el=$('#sect-stocks');return!!(el&&el.style.display!=='none');}
+async function loadStocks(){
+  if(!S.hosted){const b=$('#stockBody');if(b&&!Object.keys(S_STOCK.indices).length)b.innerHTML='<div class="panel locked" style="margin-top:14px"><div class="hex" style="background:linear-gradient(135deg,var(--cyan),var(--mag))">◇</div><div style="font-family:var(--hud);letter-spacing:4px;font-size:18px">NEEDS A LIVE HOST</div><div class="dim" style="max-width:520px;line-height:1.6">This sandbox blocks outside connections, so the index proxy has nothing to fetch. Deployed on the live host, this pulls real global indices server-side — nothing here is simulated.</div></div>';return;}
+  try{const r=await getJSON('/api/stocks',20000);S_STOCK.indices=r.indices||{};S_STOCK.fetchedAt=r.fetchedAt||Date.now();}catch(e){}
+  if(stocksTabActive())renderStocks();
+}
+function renderStocks(){
+  const wrap=$('#stockBody');if(!wrap)return;
+  const all=Object.values(S_STOCK.indices);
+  if(!all.length){wrap.innerHTML='<div class="panel locked" style="margin-top:14px"><div class="hex" style="background:linear-gradient(135deg,var(--cyan),var(--mag))">◇</div><div style="font-family:var(--hud);letter-spacing:4px;font-size:18px">LOADING GLOBAL INDICES…</div><div class="dim">Waiting on the server-side quote proxy…</div></div>';return;}
+  const regions=STOCK_REGIONS.filter(r=>all.some(x=>x.region===r));
+  if(!regions.includes(S_STOCK.region))S_STOCK.region=regions[0];
+  const live=all.filter(x=>x.source!=='unavailable').length;
+  wrap.innerHTML=`<nav class="tabs" id="stockRegionTabs" style="margin-top:0"></nav>
+    <div class="panel">
+      <div class="ptitle">GLOBAL INDICES <span class="r">${live}/${all.length} live · updated ${S_STOCK.fetchedAt?new Date(S_STOCK.fetchedAt).toLocaleTimeString('en-GB'):'—'}</span></div>
+      <div class="dim" style="font-size:13px;margin-bottom:10px">Server-proxied, no API key — each index tries Yahoo then Stooq (Colombo uses the CSE's own feed), reported honestly per index rather than ever faking a number.</div>
+      <div class="idxgrid" id="stockGrid"></div>
+    </div>`;
+  $('#stockRegionTabs').innerHTML=regions.map(r=>`<button class="fbtn ${S_STOCK.region===r?'on':''}" data-rg="${r}">${r.toUpperCase()}</button>`).join('');
+  document.querySelectorAll('#stockRegionTabs .fbtn').forEach(b=>b.onclick=()=>{S_STOCK.region=b.dataset.rg;renderStocks();});
+  const rows=all.filter(x=>x.region===S_STOCK.region);
+  const srcLbl={yahoo:'LIVE · YAHOO',stooq:'LIVE · STOOQ',cse:'LIVE · CSE',unavailable:'NO DATA'};
+  const srcCls={yahoo:'ok',stooq:'ok',cse:'ok',unavailable:'err'};
+  $('#stockGrid').innerHTML=rows.map(idx=>{const chg=idx.changePct;
+    return`<div class="idx-card"><span class="st ${srcCls[idx.source]||'wait'} src">${srcLbl[idx.source]||'—'}</span>
+      <div class="nm">${idx.name}</div><div class="rg">${idx.region}</div>
+      <div class="pr ${chg==null?'dim':chg>=0?'up':'dn'}">${idx.price!=null?idx.price.toLocaleString('en-GB',{maximumFractionDigits:2}):'—'}</div>
+      <div class="dim" style="font-family:var(--mono);font-size:12px">${chg!=null?pct(chg):(idx.error?('⚠ '+idx.error.slice(0,44)):'—')}</div>
+      <canvas id="ic-${idx.id}"></canvas></div>`;}).join('');
+  requestAnimationFrame(()=>rows.forEach(idx=>drawIdxSpark(idx)));
+}
+function drawIdxSpark(idx){
+  const c=document.getElementById('ic-'+idx.id);if(!c)return;const h=idx.history||[];if(h.length<2)return;
+  const dpr=devicePixelRatio||1;const W=c.clientWidth,H=c.clientHeight;c.width=W*dpr;c.height=H*dpr;const g=c.getContext('2d');g.scale(dpr,dpr);
+  const d=h.map(p=>p.c);const mn=Math.min(...d),mx=Math.max(...d);const col=d.at(-1)>=d[0]?'#00ff9c':'#ff3860';
+  const x=i=>i/(d.length-1)*W,y=v=>H-2-(v-mn)/((mx-mn)||1)*(H-4);
+  g.beginPath();d.forEach((v,i)=>i?g.lineTo(x(i),y(v)):g.moveTo(x(i),y(v)));g.strokeStyle=col;g.lineWidth=1.3;g.shadowColor=col;g.shadowBlur=6;g.stroke();
+}
 let ws;
 function openWS(){
   const streams=COINS.map(k=>S.coins[k.c].sym).filter(Boolean).map(s=>s.toLowerCase()+'@ticker').join('/');
@@ -732,9 +805,19 @@ function technicalRating(co){
   if(piv)rows.push({name:'Daily Pivot',val:'PP '+fmtP(piv.pp),verdict:co.price>piv.pp?'buy':co.price<piv.pp?'sell':'neutral'});
   const e9=ema(c,9)[L],e21=ema(c,21)[L],e50=ema(c,50)[L];
   rows.push({name:'EMA 9/21/50',val:e9>e21&&e21>e50?'stacked up':e9<e21&&e21<e50?'stacked down':'mixed',verdict:e9>e21&&e21>e50?'buy':e9<e21&&e21<e50?'sell':'neutral'});
+  const st=supertrend(k);const stDir=st.dir[L];
+  rows.push({name:'Supertrend(10,3)',val:stDir===1?'bullish':'bearish',verdict:stDir===1?'buy':'sell'});
+  const dc=donchian(k).at(-1);
+  if(dc.u!=null){const dpos=(co.price-dc.l)/((dc.u-dc.l)||1e-9);rows.push({name:'Donchian(20)',val:dpos>0.8?'near upper':dpos<0.2?'near lower':'mid-range',verdict:dpos>0.8?'buy':dpos<0.2?'sell':'neutral'});}
+  const kc=keltner(k).at(-1);
+  if(kc&&kc.u!=null)rows.push({name:'Keltner(20,2)',val:co.price>kc.u?'above upper':co.price<kc.l?'below lower':'inside',verdict:co.price>kc.u?'buy':co.price<kc.l?'sell':'neutral'});
+  const wrV=williamsR(k).at(-1);
+  if(wrV!=null)rows.push({name:'Williams %R',val:wrV.toFixed(0),verdict:wrV>-20?'sell':wrV<-80?'buy':'neutral'});
+  const cmfV=cmf(k).at(-1);
+  if(cmfV!=null)rows.push({name:'Chaikin MF(20)',val:cmfV.toFixed(3),verdict:cmfV>0.05?'buy':cmfV<-0.05?'sell':'neutral'});
   const buy=rows.filter(r=>r.verdict==='buy').length,sell=rows.filter(r=>r.verdict==='sell').length,neutral=rows.length-buy-sell;
-  let overall='NEUTRAL';const net=buy-sell;
-  if(net>=4)overall='STRONG BUY';else if(net>=2)overall='BUY';else if(net<=-4)overall='STRONG SELL';else if(net<=-2)overall='SELL';
+  let overall='NEUTRAL';const net=buy-sell;const sc=rows.length/9; // thresholds scale with factor count so adding more factors doesn't dilute the verdict
+  if(net>=4*sc)overall='STRONG BUY';else if(net>=2*sc)overall='BUY';else if(net<=-4*sc)overall='STRONG SELL';else if(net<=-2*sc)overall='SELL';
   return{rows,buy,sell,neutral,overall};
 }
 function predictPrice(co){
@@ -830,6 +913,24 @@ function buildPlan(co,lev,side,t15,score){
   return res;
 }
 
+/* POSITION / SWING MODE — a second, slower lens for holding days not hours.
+   Daily candles, a much wider ATR-multiple stop, no liquidation constraint
+   (spot or low leverage assumed) — answers "can this be held longer?" with
+   an actual second plan instead of just forcing the intraday one to fit. */
+function buildSwingPlan(co){
+  const k=co.k1d;if(!k||k.length<30)return null;
+  const p=co.price;const a1=atr(k,14).at(-1)||p*.02;
+  const cl=k.map(b=>b.c);const e21=ema(cl,21).at(-1),e50=ema(cl,50).at(-1);
+  const bias=e21>e50*1.002?'LONG':e21<e50*0.998?'SHORT':'HOLD';
+  const k20=k.slice(-20);const swingL=Math.min(...k20.map(b=>b.l)),swingH=Math.max(...k20.map(b=>b.h));
+  const L=bias==='LONG';const entry=p;
+  const slDist=bias==='HOLD'?a1*2.5:Math.max(2.5*a1,L?entry-swingL+0.3*a1:swingH-entry+0.3*a1);
+  const sl=L?entry-slDist:bias==='SHORT'?entry+slDist:entry-slDist;
+  const tp=[2,4,7].map(r=>bias==='SHORT'?entry-slDist*r:entry+slDist*r);
+  const fundingDailyPct=co.funding!=null?Math.abs(co.funding)*3:null; // funding settles ~3×/day (every 8h)
+  return{bias,entry,sl,tp,slPct:slDist/entry*100,atrPct:a1/p*100,swingL,swingH,fundingDailyPct};
+}
+
 /* NEWS SCORING */
 const POS=['surge','soar','rally','bull','approv','inflow','record high','all-time high','ath','gain','jump','breakout','adopt','partnership','launch','upgrade','accumulat','buy','etf filing','listing','integrat','rebound','recover'];
 const NEG=['plunge','crash','bear','hack','exploit','outflow','lawsuit','sue','ban','drop','fall','slump','liquidat','sell-off','selloff','fraud','delay','reject','dump','drain','stolen','investigation','probe','warning','decline','tumble','sink','fear'];
@@ -922,7 +1023,7 @@ function renderDrawer(){
   let call;
   if(s.side==='HOLD')call=`<b class="am">HOLD. No trade right now.</b> Score ${s.score.toFixed(0)} is inside the ±30 no-trade band${s.why.some(w=>w.includes('VETO'))?', or the Risk Manager vetoed the setup':''}. Arm alerts: <b class="up">long</b> on a 15m close above <b>${fmtP(P.longTrig)}</b>, <b class="dn">short</b> on a 15m close below <b>${fmtP(P.shortTrig)}</b>, then re-check here.`;
   else call=`<b class="${sideCls}">${s.side==='LONG'?'BUY / LONG':'SELL / SHORT'} ${co.c} at ${k.lev}×.</b> ${P.type==='MARKET'?`Price is at the fast EMA, so take a <b>MARKET</b> order now near <b>${fmtP(P.entry)}</b>.`:`Price is extended, so place a <b>LIMIT</b> at <b>${fmtP(P.entry)}</b> (15m EMA21 pull-back). Cancel it if not filled within 2 hours.`} Set the stop-loss at <b class="dn">${fmtP(P.sl)}</b> immediately on fill. Take profit in three steps: 40% at TP1, 35% at TP2, and run 25% to TP3. Move the stop to entry once TP1 fills.`;
-  const tr=co.techRating,pred=co.predict;
+  const tr=co.techRating,pred=co.predict;const swing=buildSwingPlan(co);
   const biasCls=pred?(pred.bias==='UP'?'LONG':pred.bias==='DOWN'?'SHORT':'HOLD'):'HOLD';
   const predBlock=pred?`<b class="${biasCls==='LONG'?'up':biasCls==='SHORT'?'dn':'am'}">${pred.bias} bias, ${pred.confidence}% statistical confidence.</b> Linear-regression trend + ATR volatility over the last 24h of 1h closes projects a likely range of <b>${fmtP(pred.low)}</b> – <b>${fmtP(pred.high)}</b> over the next ~${pred.horizon} (mid ${fmtP(pred.mid)}). This is a trend/volatility extrapolation, not a guarantee — one more input alongside the agent votes, not a forecast to trade on alone.`
     :'Gathering enough 1h history to project a range…';
@@ -943,6 +1044,14 @@ function renderDrawer(){
    <div><b>RISK IF STOPPED</b><span class="dn">$${P.riskAmt.toFixed(2)}</span><em>${S.cap.riskPct}% of wallet</em></div>
    <div><b>ATR 1H</b><span>${P.atrPct.toFixed(2)}%</span><em>volatility regime</em></div></div>`:
    `<div class="plan"><div><b>LONG TRIGGER</b><span class="up">${fmtP(P.longTrig)}</span><em>15m close above</em></div><div><b>SHORT TRIGGER</b><span class="dn">${fmtP(P.shortTrig)}</span><em>15m close below</em></div><div><b>ATR 1H</b><span>${P.atrPct.toFixed(2)}%</span><em>liq at ${k.lev}× ≈ ${P.liqPct.toFixed(1)}%</em></div></div>`}
+  <div class="ptitle" style="margin-top:16px">POSITION / SWING MODE <span class="r">for holding days, not hours</span></div>
+  <div class="dim" style="font-size:13px;margin-bottom:8px">The plan above is intraday by design — tight stop, fast re-score. This is a second, slower read off daily candles for anyone holding past one session: wider stop, fewer and bigger targets, no leverage assumed.</div>
+  ${swing?`<div class="plan">
+   <div><b>DAILY BIAS</b><span class="${swing.bias==='LONG'?'up':swing.bias==='SHORT'?'dn':'am'}">${swing.bias}</span><em>EMA21 vs EMA50, 1D</em></div>
+   <div><b>WIDE STOP</b><span class="dn">${fmtP(swing.sl)}</span><em>−${swing.slPct.toFixed(1)}% · 2.5× daily ATR</em></div>
+   <div><b>TARGETS</b><span class="up">${fmtP(swing.tp[0])} / ${fmtP(swing.tp[1])} / ${fmtP(swing.tp[2])}</span><em>2R / 4R / 7R</em></div></div>
+  <div class="dim" style="font-size:12px;margin-top:-4px">${swing.fundingDailyPct!=null?`Held as a leveraged perp, funding alone costs roughly <b class="am">${swing.fundingDailyPct.toFixed(3)}%/day</b> at the current rate — spot, or a dated future, avoids this entirely. `:''}This lens trades far less often than the intraday plan; treat it as a separate position, not a wider stop bolted onto the same trade.</div>`
+  :'<div class="dim">Gathering daily candle history for the swing lens…</div>'}
   <div class="ptitle" style="margin-top:16px">TECHNICAL RATING <span class="r">${tr?`${tr.overall} · ${tr.buy} buy / ${tr.neutral} neutral / ${tr.sell} sell`:'—'}</span></div>
   <div class="lv" style="grid-template-columns:repeat(3,1fr)">${tr?tr.rows.map(row=>`<div><b>${row.name}</b><span class="${row.verdict==='buy'?'up':row.verdict==='sell'?'dn':'dim'}">${row.val} · ${row.verdict.toUpperCase()}</span></div>`).join(''):'<div class="dim">Awaiting indicator history…</div>'}</div>
   <div class="ptitle" style="margin-top:16px">PREDICTION · STATISTICAL</div>
@@ -1186,10 +1295,11 @@ async function liveCycle(full){
   try{await loadTickers();await loadKlines();if(full){await loadPositioning();}analyseAll();}catch(e){log('chief','Cycle error: '+e.message,'dn');}
 }
 async function boot(){
-  const lines=['> ZINERGE QUANT NEXUS v1.3','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
+  const lines=['> ZINERGE QUANT NEXUS v1.4','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
   const bl=$('#bootlog');for(const l of lines){bl.textContent+=l+'\n';await sleep(220);}
   initBg();buildCards();buildAgents();renderCapital();renderSources();
   try{const h=await getJSON('/api/health',3000);S.hosted=!!(h&&h.ok);}catch(e){S.hosted=false;}
+  loadStocks();setInterval(loadStocks,3*60e3);
   S.live=await detectLive();
   if(!S.live&&S.hosted){bl.textContent+='  RETRYING\n';for(let i=0;i<3&&!S.live;i++){await sleep(1500);S.live=await detectLive();}}
   bl.textContent+=S.live?'  LIVE ✓\n> streaming market data\n':'  BLOCKED\n> sandbox detected: simulated feed engaged\n';await sleep(500);
@@ -1221,7 +1331,7 @@ function show(v){if(!VIEWS.includes(v))v='command';document.querySelectorAll('#t
   if(v==='command')setTimeout(()=>COINS.forEach(k=>drawSpark(S.coins[k.c])),30);if(v==='sources')renderSources();if(v==='capital')renderCapital();if(v==='flow')renderFlowIntel();try{if(location.hash.slice(1)!==v)history.replaceState(null,'','#'+v);}catch(e){}}
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>show(b.dataset.v));
 addEventListener('hashchange',()=>show(location.hash.slice(1)));
-document.querySelectorAll('.sect').forEach(b=>b.onclick=()=>{document.querySelectorAll('.sect').forEach(x=>x.classList.toggle('on',x===b));$('#sect-crypto').style.display=b.dataset.sect==='crypto'?'':'none';$('#sect-stocks').style.display=b.dataset.sect==='stocks'?'':'none';});
+document.querySelectorAll('.sect').forEach(b=>b.onclick=()=>{document.querySelectorAll('.sect').forEach(x=>x.classList.toggle('on',x===b));$('#sect-crypto').style.display=b.dataset.sect==='crypto'?'':'none';$('#sect-stocks').style.display=b.dataset.sect==='stocks'?'':'none';if(b.dataset.sect==='stocks')renderStocks();});
 $('#etfSave').onclick=()=>{S.etf={BTC:$('#etfBtc').value,ETH:$('#etfEth').value,SOL:$('#etfSol').value,XRP:$('#etfXrp').value};try{localStorage.setItem('qn_etf',JSON.stringify(S.etf));}catch(e){}log('macro',`ETF flows injected: BTC ${S.etf.BTC||'—'}M · ETH ${S.etf.ETH||'—'}M. Re-scoring.`,'cy');analyseAll();};
 $('#capSave').onclick=()=>{S.cap={bal:+$('#bal').value||0,riskPct:+$('#riskPct').value||1,maxPos:+$('#maxPos').value||4,dll:+$('#dll').value||4,minConf:+$('#minConf').value||55};try{localStorage.setItem('qn_cap',JSON.stringify(S.cap));}catch(e){}log('fin','Capital parameters updated. Position sizes recalculated.','cy');analyseAll();};
 ['bal','riskPct','maxPos','dll','minConf'].forEach(id=>$('#'+id).value=S.cap[id]);
