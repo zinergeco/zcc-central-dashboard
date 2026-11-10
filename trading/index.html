@@ -1172,7 +1172,7 @@ function renderAgents(){
 ============================================================ */
 function renderNews(){
   const el=$('#news');
-  if(!S.news.length){el.innerHTML=`<div class="dim" style="padding:20px;line-height:1.6">${S.live?'Newswire unreachable right now (CryptoCompare may be rate-limiting). The other agents keep running and News Sentiment votes neutral until it returns.':'The newswire needs a live host. This sandbox blocks outside requests, so no headlines are shown. Nothing here is invented.'}</div>`;}
+  if(!S.news.length){el.innerHTML=`<div class="dim" style="padding:20px;line-height:1.6">${S.live?'Newswire unreachable right now (all news sources failed to respond). The other agents keep running and News Sentiment votes neutral until it returns.':'The newswire needs a live host. This sandbox blocks outside requests, so no headlines are shown. Nothing here is invented.'}</div>`;}
   else el.innerHTML=S.news.map(n=>{const c=n.s>0?['BULLISH','var(--green)']:n.s<0?['BEARISH','var(--red)']:['NEUTRAL','var(--dim)'];
     return`<a class="ni" href="${n.url}" target="_blank" rel="noopener"><div><div class="t">${n.title.replace(/</g,'&lt;')}</div><div class="m">${n.src} · ${new Date(n.t).toLocaleString('en-GB',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short'})} <span class="coins-t">${n.coins.map(x=>`<span>${x}</span>`).join('')}</span></div></div><span class="sent" style="color:${c[1]};border-color:${c[1]}">${c[0]}</span></a>`;}).join('');
   $('#newsTime').textContent=S.news.length?'updated '+ts():'';
@@ -1210,7 +1210,7 @@ const SOURCES=[
  ['taker','Binance Taker Buy/Sell Ratio','/futures/data/takerlongshortRatio','Aggressive order flow','5 min'],
  ['fng','Fear & Greed Index','api.alternative.me/fng (via /api/macro)','Macro sentiment regime','2 min'],
  ['cg','CoinGecko Global','api.coingecko.com/api/v3/global (via /api/macro)','Total market cap, BTC / ETH dominance and volume','2 min'],
- ['news','Newswire · 7 outlets','CoinDesk · Cointelegraph · Decrypt · The Block · Bitcoin Magazine · CryptoSlate RSS + CryptoCompare (via /api/news)','Headlines de-duplicated, sentiment-scored and tagged to coins','4 min'],
+ ['news','Newswire · 6 outlets','CoinDesk · Cointelegraph · Decrypt · The Block · CryptoSlate RSS + CryptoCompare (via /api/news)','Headlines de-duplicated, sentiment-scored and tagged to coins','4 min'],
  ['etf','US Spot ETF Flows','farside.co.uk btc · eth · sol (via /api/etf)','Daily net flows (US$m) feed the Macro & Flow agent; manual override in the Intel tab','30 min'],
  ['whale','Whale Trade Feed','/fapi/v1/aggTrades · tier-1 majors','Large taker trades ≥ threshold shown live in the Flow Intel tab','20 s']];
 function renderSources(){

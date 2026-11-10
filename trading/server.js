@@ -1,4 +1,4 @@
-// Quant Nexus — Zinerge Quant Nexus v1.3 sci-fi trading terminal.
+// Quant Nexus — Zinerge Quant Nexus v1.5 sci-fi trading terminal.
 // Fully self-contained client-side engine (index.html does its own Binance
 // fetch/WebSocket + technical-indicator scoring in the browser). This server
 // serves that one HTML file, proxies small read-only data calls that
@@ -9,6 +9,15 @@
 // ANTHROPIC_MODEL env vars) for a short written read on one coin's
 // technical snapshot. That call only happens when a user clicks "Ask
 // Claude" in the drawer — it is not in any polling loop.
+//
+// GET /api/news aggregates a handful of public, keyless crypto-media RSS
+// feeds (CoinDesk, Cointelegraph, Decrypt, The Block, CryptoSlate) plus a
+// best-effort CryptoCompare/CCData call, merges and de-dupes the results,
+// and reshapes them into the same {items, status} JSON the frontend has
+// always consumed. CryptoCompare/CCData locked free access behind a
+// required API key around May 2026 (see project doc), so it is kept only
+// as a bonus source that silently contributes nothing until a key is
+// configured — the RSS feeds are the real data path now and need no key.
 //
 // GET /api/etf scrapes Farside Investors' public BTC/ETH/SOL spot-ETF daily
 // flow tables (farside.co.uk — no API key, no auth) server-side with a
@@ -91,21 +100,129 @@ async function apiMacro(req, res) {
   }
 }
 
-async function apiNews(req, res) {
+// ---------------------------------------------------------------------
+// GET /api/news — keyless multi-source RSS newswire (+ bonus CryptoCompare)
+// ---------------------------------------------------------------------
+// CryptoCompare/CCData closed free, unauthenticated access to its news API
+// around May 2026 (confirmed: HTTP 401 "rate limit exceeded" with no key
+// configured). Rather than depend on any single source — keyed or not —
+// this pulls from several independent, keyless, public crypto-media RSS
+// feeds in parallel, merges + de-dupes by URL, sorts newest-first, and
+// reports per-source status so the UI can show exactly what's live. Zero
+// npm dependencies: a small regex/CDATA RSS parser, same convention as
+// the rest of this file (see parseFarsideTable above for the same style
+// applied to HTML instead of XML).
+const NEWS_RSS_FEEDS = [
+  { id: 'coindesk', url: 'https://www.coindesk.com/arc/outboundfeeds/rss/' },
+  { id: 'cointelegraph', url: 'https://cointelegraph.com/rss' },
+  { id: 'decrypt', url: 'https://decrypt.co/feed' },
+  { id: 'theblock', url: 'https://www.theblock.co/rss.xml' },
+  { id: 'cryptoslate', url: 'https://cryptoslate.com/feed/' },
+];
+const NEWS_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
+
+function decodeXmlEntities(s) {
+  return s
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&');
+}
+
+function stripHtmlTags(html) {
+  return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function xmlTag(block, tag) {
+  const m = block.match(new RegExp('<' + tag + '[^>]*>([\\s\\S]*?)</' + tag + '>', 'i'));
+  return m ? decodeXmlEntities(m[1]).trim() : '';
+}
+
+function parseRssItems(xml, srcName) {
+  const blocks = [...xml.matchAll(/<item[^>]*>([\s\S]*?)<\/item>/gi)].map((m) => m[1]);
+  return blocks
+    .map((block) => {
+      const title = xmlTag(block, 'title');
+      const link = xmlTag(block, 'link') || xmlTag(block, 'guid');
+      const pubDate = xmlTag(block, 'pubDate');
+      const descRaw = xmlTag(block, 'description') || xmlTag(block, 'content:encoded');
+      const parsed = pubDate ? Date.parse(pubDate) : NaN;
+      return {
+        title,
+        url: link,
+        src: srcName,
+        t: isFinite(parsed) ? parsed : Date.now(),
+        body: stripHtmlTags(descRaw).slice(0, 500),
+      };
+    })
+    .filter((it) => it.title && it.url);
+}
+
+async function fetchRssFeed(feed) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 12000);
   try {
-    const n = await getJSON('https://min-api.cryptocompare.com/data/v2/news/?lang=EN', 12000);
-    if (!Array.isArray(n.Data)) throw new Error(n.Message || 'no data');
-    const items = n.Data.slice(0, 60).map((x) => ({
-      title: x.title,
-      url: x.url,
-      src: (x.source_info && x.source_info.name) || x.source,
-      t: x.published_on * 1000,
-      body: x.body || '',
-    }));
-    sendJSON(res, 200, { items, status: { cryptocompare: 'ok' } });
-  } catch (err) {
-    sendJSON(res, 200, { items: [], status: { cryptocompare: 'error: ' + err.message } });
+    const r = await fetch(feed.url, {
+      signal: ctl.signal,
+      headers: { 'User-Agent': NEWS_UA, Accept: 'application/rss+xml, application/xml, text/xml, */*' },
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const xml = await r.text();
+    const items = parseRssItems(xml, feed.id);
+    if (!items.length) throw new Error('no items parsed');
+    return items;
+  } finally {
+    clearTimeout(t);
   }
+}
+
+async function fetchCryptoCompareNews() {
+  const n = await getJSON('https://min-api.cryptocompare.com/data/v2/news/?lang=EN', 10000);
+  if (!Array.isArray(n.Data)) throw new Error(n.Message || 'no data');
+  return n.Data.slice(0, 40).map((x) => ({
+    title: x.title,
+    url: x.url,
+    src: 'cryptocompare',
+    t: x.published_on * 1000,
+    body: x.body || '',
+  }));
+}
+
+async function apiNews(req, res) {
+  const sources = [
+    ...NEWS_RSS_FEEDS.map((feed) => ({ id: feed.id, run: () => fetchRssFeed(feed) })),
+    { id: 'cryptocompare', run: fetchCryptoCompareNews },
+  ];
+  const results = await Promise.allSettled(sources.map((s) => s.run()));
+
+  const status = {};
+  let items = [];
+  results.forEach((r, i) => {
+    const id = sources[i].id;
+    if (r.status === 'fulfilled') {
+      status[id] = 'ok (' + r.value.length + ')';
+      items = items.concat(r.value);
+    } else {
+      status[id] = 'error: ' + (r.reason && r.reason.message);
+    }
+  });
+
+  const seen = new Set();
+  items = items
+    .sort((a, b) => b.t - a.t)
+    .filter((it) => {
+      const key = it.url || it.title;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 80);
+
+  sendJSON(res, 200, { items, status });
 }
 
 // ---------------------------------------------------------------------
@@ -225,24 +342,24 @@ async function apiEtf(req, res) {
 // GET /api/stocks — global index snapshot for the STOCKS tab
 // ---------------------------------------------------------------------
 const STOCK_INDICES = [
-  { id: 'spx',   name: 'S&P 500',            region: 'Americas',    yahoo: '^GSPC',      stooq: '^spx'   },
-  { id: 'ndq',   name: 'Nasdaq Composite',   region: 'Americas',    yahoo: '^IXIC',      stooq: '^ndq'   },
-  { id: 'dji',   name: 'Dow Jones (NYSE)',   region: 'Americas',    yahoo: '^DJI',       stooq: '^dji'   },
-  { id: 'tsx',   name: 'TSX Composite',      region: 'Americas',    yahoo: '^GSPTSE',    stooq: '^tsx'   },
-  { id: 'bvsp',  name: 'Bovespa',            region: 'Americas',    yahoo: '^BVSP',      stooq: '^bvsp'  },
-  { id: 'ftse',  name: 'FTSE 100',           region: 'Europe',      yahoo: '^FTSE',      stooq: '^ftse'  },
-  { id: 'dax',   name: 'DAX',                region: 'Europe',      yahoo: '^GDAXI',     stooq: '^dax'   },
-  { id: 'cac',   name: 'CAC 40',             region: 'Europe',      yahoo: '^FCHI',      stooq: '^cac'   },
-  { id: 'stoxx', name: 'Euro Stoxx 50',      region: 'Europe',      yahoo: '^STOXX50E',  stooq: '^sx5e'  },
-  { id: 'nse',   name: 'Nifty 50 (NSE)',     region: 'South Asia',  yahoo: '^NSEI',      stooq: '^nsei'  },
-  { id: 'bse',   name: 'Sensex (BSE)',       region: 'South Asia',  yahoo: '^BSESN',     stooq: '^bsesn' },
-  { id: 'cse',   name: 'ASPI (Colombo)',     region: 'South Asia',  cse: 'aspiData' },
-  { id: 'cse20', name: 'S&P SL20 (Colombo)', region: 'South Asia',  cse: 'snpData' },
-  { id: 'n225',  name: 'Nikkei 225',         region: 'Asia-Pacific',yahoo: '^N225',      stooq: '^nkx'   },
-  { id: 'hsi',   name: 'Hang Seng',          region: 'Asia-Pacific',yahoo: '^HSI',       stooq: '^hsi'   },
-  { id: 'sse',   name: 'Shanghai Composite', region: 'Asia-Pacific',yahoo: '000001.SS',  stooq: '^shc'   },
-  { id: 'kospi', name: 'KOSPI',              region: 'Asia-Pacific',yahoo: '^KS11',      stooq: '^kospi' },
-  { id: 'asx',   name: 'ASX 200',            region: 'Asia-Pacific',yahoo: '^AXJO',      stooq: '^asx'   },
+  { id: 'spx', name: 'S&P 500', region: 'Americas', yahoo: '^GSPC', stooq: '^spx' },
+  { id: 'ndq', name: 'Nasdaq Composite', region: 'Americas', yahoo: '^IXIC', stooq: '^ndq' },
+  { id: 'dji', name: 'Dow Jones (NYSE)', region: 'Americas', yahoo: '^DJI', stooq: '^dji' },
+  { id: 'tsx', name: 'TSX Composite', region: 'Americas', yahoo: '^GSPTSE', stooq: '^tsx' },
+  { id: 'bvsp', name: 'Bovespa', region: 'Americas', yahoo: '^BVSP', stooq: '^bvsp' },
+  { id: 'ftse', name: 'FTSE 100', region: 'Europe', yahoo: '^FTSE', stooq: '^ftse' },
+  { id: 'dax', name: 'DAX', region: 'Europe', yahoo: '^GDAXI', stooq: '^dax' },
+  { id: 'cac', name: 'CAC 40', region: 'Europe', yahoo: '^FCHI', stooq: '^cac' },
+  { id: 'stoxx', name: 'Euro Stoxx 50', region: 'Europe', yahoo: '^STOXX50E', stooq: '^sx5e' },
+  { id: 'nse', name: 'Nifty 50 (NSE)', region: 'South Asia', yahoo: '^NSEI', stooq: '^nsei' },
+  { id: 'bse', name: 'Sensex (BSE)', region: 'South Asia', yahoo: '^BSESN', stooq: '^bsesn' },
+  { id: 'cse', name: 'ASPI (Colombo)', region: 'South Asia', cse: 'aspiData' },
+  { id: 'cse20', name: 'S&P SL20 (Colombo)', region: 'South Asia', cse: 'snpData' },
+  { id: 'n225', name: 'Nikkei 225', region: 'Asia-Pacific', yahoo: '^N225', stooq: '^nkx' },
+  { id: 'hsi', name: 'Hang Seng', region: 'Asia-Pacific', yahoo: '^HSI', stooq: '^hsi' },
+  { id: 'sse', name: 'Shanghai Composite', region: 'Asia-Pacific', yahoo: '000001.SS', stooq: '^shc' },
+  { id: 'kospi', name: 'KOSPI', region: 'Asia-Pacific', yahoo: '^KS11', stooq: '^kospi' },
+  { id: 'asx', name: 'ASX 200', region: 'Asia-Pacific', yahoo: '^AXJO', stooq: '^asx' },
 ];
 const STOCK_CACHE_MS = 3 * 60 * 1000;
 let stockCache = { data: null, fetchedAt: 0 };
