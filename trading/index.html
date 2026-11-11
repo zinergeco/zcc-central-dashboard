@@ -385,7 +385,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
     </div>
   </div>
   <div class="panel" style="margin-top:14px">
-    <div class="ptitle">WHALE TRADES · TIER-1 MAJORS <span class="r" id="whaleMeta">—</span></div>
+    <div class="ptitle">WHALE TRADES · ALL 23 COINS <span class="r" id="whaleMeta">—</span></div>
     <div class="dim" style="font-size:13px;margin-bottom:8px">Individual large taker trades straight from Binance's own public trade feed for BTC/ETH/XRP/SOL/LTC/BNB — not on-chain wallet transfers, but a free, same-exchange proxy for aggressive big-ticket flow. Each coin's running buy-minus-sell total among these whale trades only (its "whale CVD") feeds a small, capped piece of the Derivatives Analyst's vote.</div>
     <div id="whaleThreshSel" style="margin-bottom:10px"></div>
     <div id="whaleTable"></div>
@@ -620,8 +620,10 @@ async function loadNews(){
   catch(e){setSrc('news','err',e.message);}
   scoreNews();renderNews();
 }
-async function loadEtf(){if(!S.hosted)return;try{const e=await getJSON('/api/etf',30000);S.etfRaw=e;S.etfAuto={};let d=null;['BTC','ETH','SOL'].forEach(k=>{if(e[k]&&e[k].net!=null){S.etfAuto[k]=e[k].net;d=d||e[k].date;}});S.etfDate=d;setSrc('etf','ok','auto · '+Object.entries(S.etfAuto).map(([k,v])=>k+' '+(v>0?'+':'')+v.toFixed(1)+'M').join(' · ')+(d?' · day '+d:''));
-  const t=$('#etfAutoTxt');if(t)t.innerHTML='Auto-feed (Farside, day '+d+'): '+Object.entries(S.etfAuto).map(([k,v])=>`<b class="${v>=0?'up':'dn'}">${k} ${v>0?'+':''}${v.toFixed(1)}M</b>`).join(' · ')+'.';
+async function loadEtf(){if(!S.hosted)return;try{const e=await getJSON('/api/etf',30000);S.etfRaw=e;S.etfAuto={};S.etfError=e.error||null;let d=null;['BTC','ETH','SOL'].forEach(k=>{if(e[k]&&e[k].net!=null){S.etfAuto[k]=e[k].net;d=d||e[k].date;}});S.etfDate=d;
+  if(e.error&&!Object.keys(S.etfAuto).length){setSrc('etf','err',e.error+' · manual entry still works');}
+  else{setSrc('etf','ok','auto · '+Object.entries(S.etfAuto).map(([k,v])=>k+' '+(v>0?'+':'')+v.toFixed(1)+'M').join(' · ')+(d?' · day '+d:''));
+  const t=$('#etfAutoTxt');if(t)t.innerHTML='Auto-feed (Farside, day '+d+'): '+Object.entries(S.etfAuto).map(([k,v])=>`<b class="${v>=0?'up':'dn'}">${k} ${v>0?'+':''}${v.toFixed(1)}M</b>`).join(' · ')+'.';}
   if(flowTabActive())renderEtfPanel();}catch(e){setSrc('etf','err','auto feed failed; manual entry still works');}}
 
 // SIGNAL JOURNAL — posts a snapshot of every coin's current co.sig to the
@@ -727,8 +729,11 @@ function drawVolGap(prof){
   g.textAlign='left';
 }
 async function loadWhaleTrades(){
-  const majors=COINS.filter(k=>k.lev===15);
-  const results=await Promise.allSettled(majors.map(async k=>{
+  // Tracks whale-size prints across all 23 coins (Tier I-IV), not just the
+  // 6 Tier-I majors — lower tiers are thinner books, so a given $-threshold
+  // print there is arguably more significant, not less.
+  const tracked=COINS;
+  const results=await Promise.allSettled(tracked.map(async k=>{
     const co=S.coins[k.c];if(!co.sym)return[];
     const trades=await getJSON(`${FAPI}/fapi/v1/aggTrades?symbol=${co.sym}&limit=200`,8000);
     return trades.filter(t=>(+t.p)*(+t.q)>=S.whaleMinUsd).map(t=>({id:k.c+'-'+t.a,c:k.c,side:t.m?'SELL':'BUY',price:+t.p,qty:+t.q,notional:(+t.p)*(+t.q),t:t.T}));
@@ -740,7 +745,7 @@ async function loadWhaleTrades(){
   fresh.forEach(w=>{if(!seen.has(w.id)){S.whales.unshift(w);seen.add(w.id);
     const co=S.coins[w.c];if(co)co.cvd=(co.cvd||0)+(w.side==='BUY'?w.notional:-w.notional);}});
   S.whales.sort((a,b)=>b.t-a.t);S.whales=S.whales.slice(0,150);
-  setSrc('whale','ok',S.whales.length+' tracked ≥$'+(S.whaleMinUsd/1000).toFixed(0)+'k · '+majors.length+' majors');
+  setSrc('whale','ok',S.whales.length+' tracked ≥$'+(S.whaleMinUsd/1000).toFixed(0)+'k · '+okCount+'/'+tracked.length+' coins');
   if(flowTabActive())renderWhaleTable();
 }
 // ORDER-BOOK IMBALANCE — tier-1 majors only, top 50 levels. A noisy, gameable
@@ -819,6 +824,11 @@ function renderEtfPanel(){
   const cardsEl=$('#etfCards');if(!cardsEl)return;
   const e=S.etfRaw,coins=['BTC','ETH','SOL'];
   if(!e){cardsEl.innerHTML='<div class="dim">Waiting on the Farside auto-feed (refreshes every 30 min)…</div>';$('#etfMeta').textContent='—';return;}
+  if(e.error&&!coins.some(c=>e[c]&&e[c].net!=null)){
+    cardsEl.innerHTML='<div class="dim">Live auto-feed is down: '+e.error+'<br><br>Use the manual-entry fields in the Intel tab until this is fixed.</div>';
+    $('#etfMeta').textContent='auto-feed error';
+    return;
+  }
   $('#etfMeta').textContent='Farside · day '+(S.etfDate||'—');
   cardsEl.innerHTML=coins.map(c=>{const d=e[c];if(!d||d.net==null)return`<div class="stat"><div class="k">${c} SPOT ETF</div><div class="v dim">—</div><div class="s">no data</div></div>`;
     return`<div class="stat"><div class="k">${c} SPOT ETF NET</div><div class="v ${d.net>=0?'up':'dn'}">${d.net>=0?'+$':'−$'}${Math.abs(d.net).toFixed(1)}M</div><div class="s">day ${d.date||'—'}</div></div>`;}).join('');

@@ -269,6 +269,8 @@ const FARSIDE_URLS = {
 };
 const ETF_CACHE_MS = 3 * 60 * 60 * 1000; // Farside republishes once per US trading day; no need to hammer it.
 let etfCache = { data: null, fetchedAt: 0 };
+let lastEtfErrors = {}; // per-coin failure reasons from the most recent refresh attempt, kept even
+                         // when every coin fails (so the client sees *why*, not just "unavailable").
 
 // Farside's table markup (confirmed by hand 2026-11-08): a single
 // <table class="etf">. Row 0 is a mostly-blank header with "Total" in the
@@ -352,6 +354,7 @@ async function refreshEtfCache() {
     if (r.status === 'fulfilled') data[coin] = r.value[1];
     else errors[coin] = r.reason && r.reason.message;
   });
+  lastEtfErrors = errors;
   if (Object.keys(data).length) {
     etfCache = { data: { ...data, errors }, fetchedAt: Date.now() };
   }
@@ -363,7 +366,12 @@ async function apiEtf(req, res) {
     const stale = !etfCache.data || Date.now() - etfCache.fetchedAt > ETF_CACHE_MS;
     if (stale) await refreshEtfCache().catch(() => {});
     if (!etfCache.data) {
-      sendJSON(res, 200, { error: 'ETF data unavailable (Farside fetch failed and no cache yet).', source: 'https://farside.co.uk' });
+      const detail = Object.entries(lastEtfErrors).map(([c, m]) => `${c}: ${m || 'unknown error'}`).join('; ');
+      sendJSON(res, 200, {
+        error: 'ETF data unavailable (Farside fetch failed and no cache yet).' + (detail ? ' ' + detail : ''),
+        errors: lastEtfErrors,
+        source: 'https://farside.co.uk',
+      });
       return;
     }
     sendJSON(res, 200, { ...etfCache.data, source: 'https://farside.co.uk', fetchedAt: etfCache.fetchedAt });
