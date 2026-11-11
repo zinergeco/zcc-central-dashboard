@@ -249,7 +249,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
 
 <div class="app">
 <header>
-  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.5</small></div>
+  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.6</small></div>
   <div class="hdr-mid">
     <button class="sect on" data-sect="crypto">◈ CRYPTO FUTURES</button>
     <button class="sect" data-sect="stocks">◇ GLOBAL STOCKS</button>
@@ -272,6 +272,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
   <button data-v="capital">◆ RISK &amp; CAPITAL</button>
   <button data-v="sources">⟁ DATA SOURCES</button>
   <button data-v="flow">⬡ FLOW INTEL</button>
+  <button data-v="lab">⚙ MODEL LAB</button>
 </nav>
 
 <section class="view on" id="v-command">
@@ -324,6 +325,11 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
         <div style="margin-top:10px;font-size:13px"><a href="https://farside.co.uk/btc/" target="_blank" rel="noopener">Farside BTC ↗</a> · <a href="https://farside.co.uk/eth/" target="_blank" rel="noopener">Farside ETH ↗</a> · <a href="https://sosovalue.com/assets/etf/us-btc-spot" target="_blank" rel="noopener">SoSoValue ↗</a></div>
       </div>
       <div class="panel" style="margin-top:14px"><div class="ptitle">SENTIMENT BY COIN (24H HEADLINES)</div><div id="coinSent"></div></div>
+      <div class="panel" style="margin-top:14px"><div class="ptitle">MACRO &amp; OPTIONS INTEL <span class="r" id="intelMeta">—</span></div>
+        <div class="dim" style="font-size:12px;margin-bottom:8px">Free, keyless cross-asset reads feeding the Macro &amp; Flow Analyst with small, capped weights — not a standalone signal on their own.</div>
+        <div class="regime" id="intelStats" style="grid-template-columns:repeat(2,1fr)"></div>
+        <div id="calendarBanner" style="margin-top:10px"></div>
+      </div>
     </div>
   </div>
 </section>
@@ -344,6 +350,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
       <div class="panel" style="margin-top:14px"><div class="ptitle">ACTIONABLE BOOK · RANKED BY CONFIDENCE</div><div id="book"></div></div>
     </div>
   </div>
+  <div class="panel" style="margin-top:14px"><div class="ptitle">PORTFOLIO ADVISORY <span class="r">¼-Kelly sizing · correlation exposure</span></div><div id="capAdvisory"></div></div>
 </section>
 
 <section class="view" id="v-sources">
@@ -379,10 +386,24 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
   </div>
   <div class="panel" style="margin-top:14px">
     <div class="ptitle">WHALE TRADES · TIER-1 MAJORS <span class="r" id="whaleMeta">—</span></div>
-    <div class="dim" style="font-size:13px;margin-bottom:8px">Individual large taker trades straight from Binance's own public trade feed for BTC/ETH/XRP/SOL/LTC/BNB — not on-chain wallet transfers, but a free, same-exchange proxy for aggressive big-ticket flow.</div>
+    <div class="dim" style="font-size:13px;margin-bottom:8px">Individual large taker trades straight from Binance's own public trade feed for BTC/ETH/XRP/SOL/LTC/BNB — not on-chain wallet transfers, but a free, same-exchange proxy for aggressive big-ticket flow. Each coin's running buy-minus-sell total among these whale trades only (its "whale CVD") feeds a small, capped piece of the Derivatives Analyst's vote.</div>
     <div id="whaleThreshSel" style="margin-bottom:10px"></div>
     <div id="whaleTable"></div>
   </div>
+  <div class="panel" style="margin-top:14px">
+    <div class="ptitle">FORCED LIQUIDATIONS <span class="r">wss://fstream.binance.com/ws/!forceOrder@arr</span></div>
+    <div class="dim" style="font-size:13px;margin-bottom:8px">Every forced liquidation Binance's futures engine reports, exchange-wide, in real time. A cluster on one coin is flagged as a cascade below — it's shown for awareness only and never moves a score, since forced selling can mark capitulation near a low just as easily as it can keep feeding a downtrend.</div>
+    <div id="liqTable"></div>
+  </div>
+</section>
+
+<section class="view" id="v-lab">
+  <div class="panel"><div class="ptitle">MODEL LAB · PER-AGENT SCORECARD <span class="r" id="labMeta">—</span></div>
+    <div class="dim" style="font-size:13px;margin-bottom:10px">Built from the signal journal: every signal this engine has produced, checked ~24h later against what the market actually did. This is observation, not a feedback loop yet — nothing on this tab changes how any agent is weighted. That's the planned next step once there's enough history here to train on.</div>
+    <div id="labSummary"></div>
+    <div id="labAgentTable" style="margin-top:12px"></div>
+  </div>
+  <div class="panel" style="margin-top:14px"><div class="ptitle">RECENT RESOLVED SIGNALS</div><div id="labRecent"></div></div>
 </section>
 </div>
 
@@ -397,7 +418,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
   </div>
 </div>
 
-<footer>ZCC Trading · Quant Nexus v1.5 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
+<footer>ZCC Trading · Quant Nexus v1.6 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
 </div>
 
 <div id="shade"></div>
@@ -461,8 +482,10 @@ const AGENTS=[
 ============================================================ */
 const S={live:false,hosted:false,etfAuto:{},etfRaw:null,etfFund:'BTC',coins:{},fng:null,fngPrev:null,global:null,news:[],etf:{BTC:null,ETH:null,SOL:null,XRP:null},
   src:{},logs:[],cap:{bal:1000,riskPct:1,maxPos:4,dll:4,minConf:55},tf:'1h',openCoin:null,lastScore:0,
-  flowCoin:'BTC',flowTf:'4h',whales:[],whaleMinUsd:50000};
+  flowCoin:'BTC',flowTf:'4h',whales:[],whaleMinUsd:50000,
+  liqs:[],liqCascade:{},intel:null,calendar:[],calendarAt:0,journalStats:null,journalPostedAt:0};
 COINS.forEach(k=>S.coins[k.c]={...k,sym:null,dataSym:null,quote:'USDC',fallback:false,price:null,prev:null,chg:0,vol:0,funding:null,
+  markPrice:null,indexPrice:null,basis:null,topLsr:null,obImbalance:null,cvd:0,
   k15:[],k1h:[],k4h:[],k12h:[],k1d:[],oi:[],lsr:null,taker:null,sig:null,techRating:null,predict:null});
 try{const c=JSON.parse(localStorage.getItem('qn_cap')||'null');if(c)Object.assign(S.cap,c);const e=JSON.parse(localStorage.getItem('qn_etf')||'null');if(e)Object.assign(S.etf,e);}catch(e){}
 
@@ -565,20 +588,24 @@ async function loadTickers(){
   try{const [t,p]=await Promise.all([getJSON(FAPI+'/fapi/v1/ticker/24hr'),getJSON(FAPI+'/fapi/v1/premiumIndex')]);
     const tm={},pm={};t.forEach(x=>tm[x.symbol]=x);p.forEach(x=>pm[x.symbol]=x);
     for(const k of COINS){const co=S.coins[k.c];const x=tm[co.sym];if(x){co.price=+x.lastPrice;co.chg=+x.priceChangePercent;co.vol=+x.quoteVolume;}
-      const f=pm[co.sym]||pm[co.dataSym];if(f)co.funding=+f.lastFundingRate*100;}
-    setSrc('ticker','ok');setSrc('funding','ok');}catch(e){setSrc('ticker','err',e.message);setSrc('funding','err');}
+      const f=pm[co.sym]||pm[co.dataSym];if(f){co.funding=+f.lastFundingRate*100;co.markPrice=+f.markPrice;co.indexPrice=+f.indexPrice;
+        co.basis=(co.indexPrice&&isFinite(co.indexPrice))?(co.markPrice-co.indexPrice)/co.indexPrice*100:null;}}
+    setSrc('ticker','ok');setSrc('funding','ok');setSrc('basis','ok');}catch(e){setSrc('ticker','err',e.message);setSrc('funding','err');setSrc('basis','err');}
 }
 async function loadPositioning(){
-  let ok=0;
+  let ok=0,okTop=0;
   for(const k of COINS){const co=S.coins[k.c];if(!co.dataSym)continue;
-    try{const [oi,ls,tk]=await Promise.all([
+    try{const [oi,ls,tk,topLs]=await Promise.all([
       getJSON(`${FAPI}/futures/data/openInterestHist?symbol=${co.dataSym}&period=1h&limit=25`),
       getJSON(`${FAPI}/futures/data/globalLongShortAccountRatio?symbol=${co.dataSym}&period=1h&limit=2`),
-      getJSON(`${FAPI}/futures/data/takerlongshortRatio?symbol=${co.dataSym}&period=1h&limit=4`)]);
+      getJSON(`${FAPI}/futures/data/takerlongshortRatio?symbol=${co.dataSym}&period=1h&limit=4`),
+      getJSON(`${FAPI}/futures/data/topLongShortPositionRatio?symbol=${co.dataSym}&period=1h&limit=2`).catch(()=>null)]);
       co.oi=oi.map(x=>+x.sumOpenInterestValue);co.lsr=ls.length?+ls.at(-1).longShortRatio:null;
-      co.taker=tk.length?tk.reduce((a,x)=>a+ +x.buySellRatio,0)/tk.length:null;ok++;}catch(e){}
+      co.taker=tk.length?tk.reduce((a,x)=>a+ +x.buySellRatio,0)/tk.length:null;ok++;
+      if(topLs&&topLs.length){co.topLsr=+topLs.at(-1).longShortRatio;okTop++;}else co.topLsr=null;}catch(e){}
     await sleep(80);}
   ['oi','lsr','taker'].forEach(id=>setSrc(id,ok?'ok':'err',ok+'/'+COINS.length+' contracts'));
+  setSrc('topLsr',okTop?'ok':'err',okTop+'/'+COINS.length+' contracts · top-trader positions (by position size, not account count)');
 }
 async function loadMacro(){
   if(S.hosted){try{const m=await getJSON('/api/macro',15000);if(m.fng){S.fng=m.fng.now;S.fngLbl=m.fng.label;S.fngPrev=m.fng.prev;setSrc('fng','ok');}else setSrc('fng','err');if(m.global){S.global=m.global;setSrc('cg','ok');}else setSrc('cg','err');}catch(e){setSrc('fng','err',e.message);setSrc('cg','err',e.message);}return;}
@@ -596,6 +623,75 @@ async function loadNews(){
 async function loadEtf(){if(!S.hosted)return;try{const e=await getJSON('/api/etf',30000);S.etfRaw=e;S.etfAuto={};let d=null;['BTC','ETH','SOL'].forEach(k=>{if(e[k]&&e[k].net!=null){S.etfAuto[k]=e[k].net;d=d||e[k].date;}});S.etfDate=d;setSrc('etf','ok','auto · '+Object.entries(S.etfAuto).map(([k,v])=>k+' '+(v>0?'+':'')+v.toFixed(1)+'M').join(' · ')+(d?' · day '+d:''));
   const t=$('#etfAutoTxt');if(t)t.innerHTML='Auto-feed (Farside, day '+d+'): '+Object.entries(S.etfAuto).map(([k,v])=>`<b class="${v>=0?'up':'dn'}">${k} ${v>0?'+':''}${v.toFixed(1)}M</b>`).join(' · ')+'.';
   if(flowTabActive())renderEtfPanel();}catch(e){setSrc('etf','err','auto feed failed; manual entry still works');}}
+
+// SIGNAL JOURNAL — posts a snapshot of every coin's current co.sig to the
+// server every 15 min (not every 60s cycle — that would be ~2,200 rows/day
+// across 23 coins instead of ~33,000). The server resolves each row's
+// outcome ~24h later by replaying real Binance candles; GET
+// /api/journal/stats (Model Lab tab) is what turns this into the per-agent
+// scorecard the model-improvement review asked for.
+async function postJournal(){
+  if(!S.hosted)return;
+  const sigs=COINS.map(k=>{const co=S.coins[k.c];if(!co.sig)return null;const s=co.sig,P=s.plan;
+    const tier=k.lev===15?1:k.lev===10?2:k.lev===5?3:4;
+    return{symbol:k.c,side:s.side,score:s.score,conf:s.conf,votes:s.raw,
+      entry:P.entry!=null?P.entry:null,sl:P.sl!=null?P.sl:null,
+      tp1:P.tp?P.tp[0]:null,tp2:P.tp?P.tp[1]:null,tp3:P.tp?P.tp[2]:null,
+      leverage:k.lev,tier,margin:P.margin!=null?P.margin:null,riskAmt:P.riskAmt!=null?P.riskAmt:null};
+  }).filter(Boolean);
+  if(!sigs.length)return;
+  try{const r=await fetch('/api/journal',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({signals:sigs})});
+    const j=await r.json();
+    if(j.error){setSrc('journal','err',j.error);}else{S.journalPostedAt=Date.now();setSrc('journal','ok',(j.inserted||0)+' signals logged · '+ts());}
+  }catch(e){setSrc('journal','err',e.message);}
+}
+
+// Tracks a day-over-day change for a value this page otherwise only ever sees
+// a single current snapshot of (stablecoin supply, USD-strength proxy, 10Y
+// yield) — the server has no persistent history for these, so the baseline
+// lives in this browser's localStorage instead. Honest about it: a value
+// only appears once ~20h have actually elapsed since the stored baseline.
+function rollingDelta(key,val){
+  if(val==null||!isFinite(val))return null;
+  try{
+    const raw=localStorage.getItem('qn_roll_'+key);const prev=raw?JSON.parse(raw):null;
+    let delta=null;
+    if(prev&&prev.baseV!=null&&Date.now()-prev.baseT>=20*3600*1000)delta=(val-prev.baseV)/prev.baseV*100;
+    if(!prev||!prev.baseT||Date.now()-prev.baseT>30*3600*1000)localStorage.setItem('qn_roll_'+key,JSON.stringify({baseV:val,baseT:Date.now()}));
+    return delta;
+  }catch(e){return null;}
+}
+async function loadIntel(){
+  if(!S.hosted)return;
+  try{const d=await getJSON('/api/intel',20000);S.intel=d;
+    if(d.stablecoinSupply!=null)S.intel.stableDeltaPct=rollingDelta('stable',d.stablecoinSupply);
+    if(d.usdFx&&d.usdFx.EUR!=null)S.intel.usdDeltaPct=rollingDelta('usdfx',d.usdFx.EUR);
+    if(d.treasury&&d.treasury.y10!=null)S.intel.y10DeltaBp=(()=>{const dd=rollingDelta('y10',d.treasury.y10);return dd!=null?dd*d.treasury.y10/100*100:null;})();
+    const okCount=d.status?Object.values(d.status).filter(v=>v==='ok').length:0;
+    const total=d.status?Object.keys(d.status).length:0;
+    setSrc('intel',okCount?'ok':'err',okCount+'/'+total+' sub-sources');
+  }catch(e){setSrc('intel','err',e.message);}
+  if($('#v-intel').classList.contains('on'))renderIntelPanel();
+}
+async function loadCalendar(){
+  if(!S.hosted)return;
+  try{const d=await getJSON('/api/calendar',20000);S.calendar=d.events||[];S.calendarAt=Date.now();
+    setSrc('calendar',d.error&&!S.calendar.length?'err':'ok',S.calendar.length+' high-impact events this week'+(d.error?' · '+d.error:''));}
+  catch(e){setSrc('calendar','err',e.message);}
+  if($('#v-intel').classList.contains('on'))renderIntelPanel();
+}
+function calendarSoonEvents(){
+  const now=Date.now();
+  return (S.calendar||[]).filter(e=>{const t=Date.parse(e.date);return isFinite(t)&&Math.abs(t-now)<=2*60*60*1000;});
+}
+async function loadJournalStats(){
+  if(!S.hosted)return;
+  try{const d=await getJSON('/api/journal/stats',20000);
+    if(d.error){S.journalStats=null;setSrc('journalStats','err',d.error);}
+    else{S.journalStats=d;setSrc('journalStats','ok',(d.overall&&d.overall.sample||0)+' resolved trades');}
+  }catch(e){setSrc('journalStats','err',e.message);}
+  if(typeof renderModelLab==='function'&&$('#v-lab')&&$('#v-lab').classList.contains('on'))renderModelLab();
+}
 
 /* ============================================================
    FLOW INTEL — volume/liquidity gaps, whale trades, ETF flows
@@ -641,10 +737,51 @@ async function loadWhaleTrades(){
   const okCount=results.filter(r=>r.status==='fulfilled').length;
   if(!okCount){setSrc('whale','err','Binance aggTrades feed unreachable');return;}
   const seen=new Set(S.whales.map(w=>w.id));
-  fresh.forEach(w=>{if(!seen.has(w.id)){S.whales.unshift(w);seen.add(w.id);}});
+  fresh.forEach(w=>{if(!seen.has(w.id)){S.whales.unshift(w);seen.add(w.id);
+    const co=S.coins[w.c];if(co)co.cvd=(co.cvd||0)+(w.side==='BUY'?w.notional:-w.notional);}});
   S.whales.sort((a,b)=>b.t-a.t);S.whales=S.whales.slice(0,150);
   setSrc('whale','ok',S.whales.length+' tracked ≥$'+(S.whaleMinUsd/1000).toFixed(0)+'k · '+majors.length+' majors');
   if(flowTabActive())renderWhaleTable();
+}
+// ORDER-BOOK IMBALANCE — tier-1 majors only, top 50 levels. A noisy, gameable
+// (spoofable) microstructure signal, so it feeds Quant Momentum with a small
+// capped weight rather than its own agent.
+async function loadOrderBook(){
+  const majors=COINS.filter(k=>k.lev===15);
+  const results=await Promise.allSettled(majors.map(async k=>{
+    const co=S.coins[k.c];if(!co.sym)return;
+    const d=await getJSON(`${FAPI}/fapi/v1/depth?symbol=${co.sym}&limit=50`,8000);
+    const bidVol=d.bids.reduce((a,b)=>a+ +b[1],0),askVol=d.asks.reduce((a,b)=>a+ +b[1],0);const tot=bidVol+askVol;
+    co.obImbalance=tot?(bidVol-askVol)/tot:null;
+  }));
+  const ok=results.filter(r=>r.status==='fulfilled').length;
+  setSrc('orderbook',ok?'ok':'err',ok+'/'+majors.length+' majors · top 50 levels');
+}
+// LIQUIDATION FEED — Binance's public forceOrder stream, every futures symbol.
+// Flags a "cascade" when several forced liquidations on one coin land close
+// together, shown as context in the Derivatives Analyst's reasoning trace and
+// the Flow Intel tab — direction is genuinely ambiguous (forced selling can
+// mark capitulation near a low, or keep feeding a downtrend), so this never
+// moves the score on its own.
+function symbolToCoin(sym){for(const k of COINS){const co=S.coins[k.c];if(co.sym===sym||co.dataSym===sym)return k.c;}return null;}
+function noteLiquidation(l){
+  S.liqs.unshift(l);if(S.liqs.length>120)S.liqs.shift();
+  const win=S.liqs.filter(x=>x.c===l.c&&l.t-x.t<5*60e3);
+  const notional=win.reduce((a,x)=>a+x.notional,0);
+  const sellN=win.filter(x=>x.side==='SELL').reduce((a,x)=>a+x.notional,0),buyN=win.reduce((a,x)=>a+x.notional,0)-sellN;
+  S.liqCascade[l.c]={cascading:win.length>=3&&notional>=500000,notional,windowMin:5,dominantSide:sellN>=buyN?'SELL':'BUY',count:win.length,at:Date.now()};
+  if(flowTabActive())renderLiqPanel();
+}
+let liqWs;
+function openLiqWS(){
+  try{liqWs=new WebSocket('wss://fstream.binance.com/ws/!forceOrder@arr');}catch(e){setSrc('liq','err');return;}
+  liqWs.onopen=()=>{setSrc('liq','ok','streaming exchange-wide forced liquidations');};
+  liqWs.onmessage=ev=>{try{const m=JSON.parse(ev.data);const arr=Array.isArray(m)?m:[m];
+    arr.forEach(x=>{const o=x.o;if(!o)return;const c=symbolToCoin(o.s);if(!c)return;
+      noteLiquidation({c,side:o.S,price:+o.p,qty:+o.q,notional:(+o.ap||+o.p)*(+o.q),t:x.E||Date.now()});});
+  }catch(e){}};
+  liqWs.onclose=()=>{setSrc('liq','err','reconnecting');setTimeout(openLiqWS,5000);};
+  liqWs.onerror=()=>{};
 }
 function renderWhaleTable(){
   const el=$('#whaleTable');if(!el)return;
@@ -660,6 +797,14 @@ function renderWhaleTable(){
   <table><tr><th>TIME</th><th>COIN</th><th>SIDE</th><th>PRICE</th><th>QTY</th><th>NOTIONAL</th></tr>
   ${S.whales.slice(0,40).map(w=>`<tr><td class="dim">${new Date(w.t).toLocaleTimeString('en-GB')}</td><td><b>${w.c}</b></td><td class="${w.side==='BUY'?'up':'dn'}">${w.side}</td><td>${fmtP(w.price)}</td><td>${w.qty.toPrecision(4)}</td><td class="${w.side==='BUY'?'up':'dn'}">$${(w.notional/1000).toFixed(1)}k</td></tr>`).join('')}
   </table>`;
+}
+function renderLiqPanel(){
+  const el=$('#liqTable');if(!el)return;
+  const cascades=Object.entries(S.liqCascade).filter(([,v])=>v.cascading&&Date.now()-v.at<10*60e3);
+  const cascadeHtml=cascades.length?cascades.map(([c,v])=>`<div style="padding:5px 0;border-bottom:1px solid rgba(0,240,255,.07);font-size:13px"><b class="${v.dominantSide==='SELL'?'dn':'up'}">CASCADE</b> ${c} · ${v.count} forced ${v.dominantSide.toLowerCase()}s · $${(v.notional/1e6).toFixed(2)}m in ${v.windowMin}min <span class="dim">— direction after a cascade is genuinely ambiguous; shown for awareness, not scored</span></div>`).join(''):'<div class="dim">No liquidation cascade in the last 10 minutes.</div>';
+  if(!S.liqs.length){el.innerHTML=cascadeHtml+'<div class="dim" style="margin-top:8px">Listening for forced liquidations…</div>';return;}
+  el.innerHTML=cascadeHtml+'<table style="margin-top:8px"><tr><th>TIME</th><th>COIN</th><th>SIDE</th><th>PRICE</th><th>NOTIONAL</th></tr>'+
+    S.liqs.slice(0,30).map(l=>`<tr><td class="dim">${new Date(l.t).toLocaleTimeString('en-GB')}</td><td><b>${l.c}</b></td><td class="${l.side==='SELL'?'dn':'up'}">${l.side}</td><td>${fmtP(l.price)}</td><td>$${(l.notional/1000).toFixed(1)}k</td></tr>`).join('')+'</table>';
 }
 function drawEtfHistory(sel){
   const c=$('#etfHistChart');if(!c)return;const dpr=devicePixelRatio||1;const W=c.clientWidth,H=c.clientHeight;c.width=W*dpr;c.height=H*dpr;const g=c.getContext('2d');g.scale(dpr,dpr);g.clearRect(0,0,W,H);
@@ -701,6 +846,7 @@ function renderFlowIntel(){
   requestAnimationFrame(()=>drawVolGap(prof));
   renderWhaleTable();
   renderEtfPanel();
+  renderLiqPanel();
 }
 
 /* ============================================================
@@ -861,6 +1007,12 @@ function analyse(co){
     else if(oiCh<-3){d+=pc>0?.1:-.1;dn.push('OI '+oiCh.toFixed(1)+'%, so positions are unwinding');}co.oiCh=oiCh;}
   if(co.lsr!=null){if(co.lsr>2.6){d-=.2;dn.push('L/S '+co.lsr.toFixed(2)+', retail heavily long');}else if(co.lsr<0.9){d+=.2;dn.push('L/S '+co.lsr.toFixed(2)+', crowd short (squeeze fuel)');}}
   if(co.taker!=null){d+=clamp((co.taker-1)*1.5,-.25,.25);}
+  // v1.6: top-trader position ratio (smart money vs the retail L/S above), mark/index basis, and whale CVD
+  if(co.topLsr!=null){if(co.topLsr>1.8){d-=.15;dn.push('top-trader L/S '+co.topLsr.toFixed(2)+', smart money long-heavy');}else if(co.topLsr<0.75){d+=.15;dn.push('top-trader L/S '+co.topLsr.toFixed(2)+', smart money short-heavy');}}
+  if(co.basis!=null&&Math.abs(co.basis)>0.15){d+=co.basis>0?-.1:.1;dn.push('mark/index basis '+(co.basis>0?'+':'')+co.basis.toFixed(2)+'%');}
+  if(co.cvd){d+=clamp(Math.sign(co.cvd)*Math.min(Math.abs(co.cvd)/2e6,.2),-.2,.2);dn.push('whale CVD '+(co.cvd>=0?'+$':'−$')+(Math.abs(co.cvd)/1e6).toFixed(2)+'m');}
+  const liqC=S.liqCascade[co.c];
+  if(liqC&&liqC.cascading&&Date.now()-liqC.at<10*60e3)dn.push('liquidation cascade: '+liqC.count+' forced '+liqC.dominantSide.toLowerCase()+'s, $'+(liqC.notional/1e6).toFixed(2)+'m/'+liqC.windowMin+'min (context only, not scored)');
   votes.deriv=clamp(d,-1,1);why.push('Derivatives Analyst: '+(dn.join('; ')||'no edge')+'.');
   // MACRO
   let m=0;const mn=[];
@@ -869,6 +1021,22 @@ function analyse(co){
   if(S.global&&co.c!=='BTC'){if(S.global.dom>60){m-=.1;mn.push('BTC.D '+S.global.dom.toFixed(1)+'%, alts suppressed');}else if(S.global.dom<54){m+=.1;mn.push('BTC.D '+S.global.dom.toFixed(1)+'%, alt rotation');}}
   const etf=etfOf(co.c);if(etf!=null){m+=clamp(etf/600,-.4,.4);mn.push('spot ETF '+(etf>0?'+':'')+etf.toFixed(1)+'M');}
   else if(co.c!=='BTC'&&co.c!=='ETH'&&etfOf('BTC')!=null){m+=clamp(etfOf('BTC')/1500,-.15,.15);mn.push('BTC ETF flow spill-over');}
+  // v1.6: Deribit DVOL/put-call (market-wide fear/complacency), stablecoin supply (fresh liquidity),
+  // USD strength + 10Y yield (cross-asset headwind/tailwind), Coinbase premium (BTC/ETH only)
+  const intel=S.intel;
+  if(intel){
+    const dvol=co.c==='ETH'?intel.dvolEth:intel.dvolBtc;
+    if(dvol!=null){if(dvol>=85){m+=.08;mn.push('DVOL '+dvol.toFixed(0)+', elevated fear (mild contrarian)');}else if(dvol<=35){m-=.06;mn.push('DVOL '+dvol.toFixed(0)+', complacent');}}
+    const pc=co.c==='ETH'?intel.putCallEth:intel.putCallBtc;
+    if(pc!=null){if(pc>=1.3){m+=.06;mn.push('put/call OI '+pc.toFixed(2)+', hedging-heavy');}else if(pc<=0.5){m-=.05;mn.push('put/call OI '+pc.toFixed(2)+', call-skewed');}}
+    if(intel.stableDeltaPct!=null){m+=clamp(intel.stableDeltaPct*2,-.15,.15);mn.push('stablecoin supply '+(intel.stableDeltaPct>=0?'+':'')+intel.stableDeltaPct.toFixed(2)+'% /~24h');}
+    if(intel.usdDeltaPct!=null){m+=clamp(-intel.usdDeltaPct*1.5,-.1,.1);mn.push('USD '+(intel.usdDeltaPct>=0?'strengthening':'weakening')+' vs basket');}
+    if(intel.treasury&&intel.y10DeltaBp!=null&&Math.abs(intel.y10DeltaBp)>=3){m+=clamp(-intel.y10DeltaBp/40,-.08,.08);mn.push('10Y yield '+(intel.y10DeltaBp>=0?'+':'')+intel.y10DeltaBp.toFixed(0)+'bp /~24h');}
+    if((co.c==='BTC'||co.c==='ETH')&&intel.coinbase){const prem=co.c==='ETH'?intel.coinbase.ethPremiumPct:intel.coinbase.btcPremiumPct;
+      if(prem!=null&&Math.abs(prem)>=0.05){m+=clamp(prem*0.15,-.15,.15);mn.push('Coinbase premium '+(prem>=0?'+':'')+prem.toFixed(3)+'%');}}
+  }
+  const calSoon=calendarSoonEvents();
+  if(calSoon.length)mn.push('high-impact event window ('+calSoon.slice(0,2).map(e=>e.title).join(', ')+') — confidence capped');
   votes.macro=clamp(m,-1,1);why.push('Macro & Flow: '+(mn.join('; ')||'neutral')+'.');
   // QUANT
   let q=0;const qn=[];
@@ -878,6 +1046,8 @@ function analyse(co){
     if(cur&&w.length){const minW=Math.min(...w);if(cur.w<=minW*1.15)qn.push('1h Bollinger squeeze, breakout pending');const p=co.price;if(p>cur.u){q+=.25;qn.push('closed above upper band');}else if(p<cur.l){q-=.25;qn.push('below lower band');}}}
   if(co.c!=='BTC'){const rs=co.chg-btc.chg;q+=clamp(rs/20,-.3,.3);qn.push('RS vs BTC '+pct(rs,1));}
   else q+=clamp(co.chg/15,-.3,.3);
+  // v1.6: order-book imbalance (tier-1 majors only) — small capped weight; a noisy, spoofable microstructure read
+  if(co.obImbalance!=null&&Math.abs(co.obImbalance)>0.08){q+=clamp(co.obImbalance*0.3,-.12,.12);qn.push('order-book '+(co.obImbalance>0?'bid':'ask')+'-heavy ('+(co.obImbalance*100).toFixed(0)+'%)');}
   votes.quant=clamp(q,-1,1);why.push('Quant Momentum: '+(qn.join('; ')||'quiet tape')+'.');
   // NEWS
   votes.news=co.newsScore||0;why.push('News Sentiment: '+(co.newsCount?co.newsCount+' headlines, net '+(co.newsScore>0?'bullish':co.newsScore<0?'bearish':'neutral'):'no coin-specific headlines')+'.');
@@ -889,6 +1059,7 @@ function analyse(co){
   let score=0;AGENTS.filter(a=>a.w).forEach(a=>score+=votes[a.id]*a.w);score=clamp(score/0.85,-1,1)*100;
   const agree=AGENTS.filter(a=>a.w).filter(a=>Math.sign(votes[a.id])===Math.sign(score)&&Math.abs(votes[a.id])>.05).length;
   let conf=clamp(Math.abs(score)*0.75+agree*6,5,97);
+  if(calSoon.length)conf=Math.min(conf,60);
   let side=score>=30?'LONG':score<=-30?'SHORT':'HOLD';
   // RISK MANAGER plan
   const plan=buildPlan(co,k.lev,side,t15,score);
@@ -1179,6 +1350,35 @@ function renderNews(){
   $('#coinSent').innerHTML='<table><tr><th>COIN</th><th>HEADLINES</th><th>SENTIMENT</th></tr>'+COINS.map(k=>{const co=S.coins[k.c];const v=co.newsScore||0;return`<tr><td style="font-family:var(--hud);font-size:12px">${k.c}</td><td class="mono">${co.newsCount||0}</td><td><div class="vb" style="height:6px;background:#071820;position:relative;width:140px"><i style="position:absolute;top:0;bottom:0;left:${v>=0?50:50+v*50}%;width:${Math.abs(v)*50}%;background:${v>=0?'var(--green)':'var(--red)'}"></i></div></td></tr>`;}).join('')+'</table>';
   ['etfBtc','etfEth','etfSol','etfXrp'].forEach((id,i)=>{const key=['BTC','ETH','SOL','XRP'][i];const v=S.etf[key];if(v!=null&&v!=='')$('#'+id).value=v;});
 }
+function renderIntelPanel(){
+  const el=$('#intelStats');
+  const i=S.intel;
+  if(!el){/* markup not mounted (shouldn't happen) */}
+  else if(!i){el.innerHTML='<div class="dim">Waiting on the first macro/options poll…</div>';$('#intelMeta').textContent='—';}
+  else{
+    $('#intelMeta').textContent='updated '+ts();
+    const tile=(k,v,s)=>`<div class="stat"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
+    let h='';
+    h+=tile('BTC DVOL (DERIBIT)',i.dvolBtc!=null?i.dvolBtc.toFixed(1):'—','30d implied vol index');
+    h+=tile('ETH DVOL (DERIBIT)',i.dvolEth!=null?i.dvolEth.toFixed(1):'—','30d implied vol index');
+    h+=tile('BTC PUT/CALL OI',i.putCallBtc!=null?i.putCallBtc.toFixed(2):'—','Deribit options');
+    h+=tile('ETH PUT/CALL OI',i.putCallEth!=null?i.putCallEth.toFixed(2):'—','Deribit options');
+    h+=tile('COINBASE PREMIUM',i.coinbase&&i.coinbase.btcPremiumPct!=null?pct(i.coinbase.btcPremiumPct,3):'—','BTC vs Binance mark');
+    h+=tile('STABLECOIN SUPPLY',i.stablecoinSupply!=null?fmtBig(i.stablecoinSupply):'—',i.stableDeltaPct!=null?pct(i.stableDeltaPct,2)+' /~24h':'collecting 24h baseline…');
+    h+=tile('USD vs EUR/JPY/GBP/CNY',i.usdFx&&i.usdFx.EUR!=null?i.usdFx.EUR.toFixed(4):'—',i.usdDeltaPct!=null?(i.usdDeltaPct>=0?'strengthening':'weakening')+' '+pct(i.usdDeltaPct,2):'collecting 24h baseline…');
+    h+=tile('US 10Y / 2Y YIELD',i.treasury&&i.treasury.y10!=null?i.treasury.y10.toFixed(2)+'% / '+(i.treasury.y2!=null?i.treasury.y2.toFixed(2)+'%':'—'):'—',i.treasury?'day '+i.treasury.date:'US Treasury daily curve');
+    el.innerHTML=h;
+  }
+  // The calendar banner is an independent data source from the intel stats above
+  // (ForexFactory vs Coinbase/Deribit/etc.) — render it regardless of whether
+  // S.intel has loaded yet, so one feed being down never hides the other.
+  const bEl=$('#calendarBanner');if(bEl){
+    const soon=calendarSoonEvents();
+    if(soon.length)bEl.innerHTML=`<div class="simbar" style="border-color:var(--amber);color:var(--amber);background:rgba(255,176,0,.06)"><b>HIGH-IMPACT WINDOW</b>${soon.map(e=>e.title+' ('+e.country+')').join(' · ')} — signal confidence capped at 60% dashboard-wide until this passes.</div>`;
+    else if(S.calendar&&S.calendar.length)bEl.innerHTML=`<div class="dim" style="font-size:12px">${S.calendar.length} high-impact events this week · next: ${S.calendar[0]?S.calendar[0].title+' ('+new Date(S.calendar[0].date).toLocaleString('en-GB',{weekday:'short',hour:'2-digit',minute:'2-digit'})+')':'—'}</div>`;
+    else bEl.innerHTML='<div class="dim" style="font-size:12px">Economic calendar unavailable right now.</div>';
+  }
+}
 function renderCapital(){
   const C=S.cap;
   const tiers=[[15,0.45,'Majors: deepest liquidity, tightest stops'],[10,0.25,'L2 / DeFi: higher beta, wider swings'],[5,0.2,'High-beta: smallest slice, widest stops'],[4,0.1,'Alt / emerging: thinnest liquidity, smallest slice']];
@@ -1198,6 +1398,56 @@ function renderCapital(){
     `Skip signals below <b>${C.minConf}%</b> confidence, and be cautious in the hour around CPI, FOMC and major ETF news.`,
     `Paper-trade the system for 2 weeks and log every call before trading real size.`];
   $('#rules').innerHTML=rules.map((r,i)=>`<li data-n="${String(i+1).padStart(2,'0')}">${r}</li>`).join('');
+  renderCapitalAdvisory();
+}
+// Advisory-only additions from the model-improvement review: a correlation-exposure
+// warning (same-direction alts behave like one bet) and a fractional-Kelly size
+// estimate. Neither changes the risk-based position size computed in buildPlan() —
+// both are informational, clearly labelled, and gated by real sample size.
+function kellyFraction(winProb,b){if(winProb==null||!isFinite(winProb))return null;return winProb-(1-winProb)/b;}
+function renderCapitalAdvisory(){
+  const el=$('#capAdvisory');if(!el)return;
+  const js=S.journalStats;const sampleOk=js&&js.overall&&js.overall.sample>=30;
+  const cs=COINS.map(k=>S.coins[k.c]).filter(c=>c.sig&&c.sig.side!=='HOLD'&&c.sig.conf>=S.cap.minConf);
+  const longs=cs.filter(c=>c.sig.side==='LONG'),shorts=cs.filter(c=>c.sig.side==='SHORT');
+  let corrHtml='';
+  const dom=longs.length>=shorts.length?longs:shorts;
+  if(cs.length>=3&&dom.length/cs.length>=0.7){
+    const notional=dom.reduce((a,c)=>a+(c.sig.plan.notional||0),0);
+    corrHtml=`<div class="simbar" style="border-color:var(--amber);color:var(--amber);background:rgba(255,176,0,.06)"><b>CORRELATION EXPOSURE</b>${dom.length} of ${cs.length} actionable trades are all ${dom===longs?'LONG':'SHORT'} (${dom.map(c=>c.c).join(', ')}) — combined notional ≈ $${notional.toFixed(0)}. Alts move with BTC, so this behaves like one concentrated bet, not ${dom.length} independent ones.</div>`;
+  }
+  const b=1.5; // TP1 R-multiple — a conservative reward:risk assumption for the estimate below
+  const rows=cs.slice(0,8).map(c=>{
+    const p=sampleOk?js.overall.winRate:c.sig.conf/100;
+    const f=kellyFraction(p,b);const qk=f!=null?clamp(f/4,0,0.05):null;
+    return`<tr><td style="font-family:var(--hud);font-size:12px">${c.c}</td><td class="${c.sig.side==='LONG'?'up':'dn'}">${c.sig.side}</td><td class="mono">${(p*100).toFixed(0)}%${sampleOk?'':' *'}</td><td class="mono">${qk!=null?(qk*100).toFixed(2)+'%':'—'}</td><td class="mono dim">${S.cap.riskPct}%</td></tr>`;
+  }).join('');
+  el.innerHTML=corrHtml+
+    `<div class="dim" style="font-size:12px;margin:10px 0 8px">¼-Kelly size = (win probability − (1−p)/${b}) ÷ 4 of wallet, capped at 5%. ${sampleOk?`Win probability uses the Model Lab's own realised win rate across ${js.overall.sample} resolved trades.`:"* Fewer than 30 resolved journal trades so far, so this falls back to each signal's own stated confidence — unvalidated until the Model Lab tab has more data."} This is advisory only and does not change the risk-based position size shown in the book above.</div>`+
+    (rows?`<table><tr><th>COIN</th><th>SIDE</th><th>WIN PROB.</th><th>¼-KELLY SIZE</th><th>YOUR FIXED RISK</th></tr>${rows}</table>`:'<div class="dim">No actionable trades right now.</div>');
+}
+const AGENT_LABELS={market:'MARKET ANALYST',deriv:'DERIVATIVES ANALYST',macro:'MACRO & FLOW',quant:'QUANT MOMENTUM',news:'NEWS SENTIMENT',tech:'TECHNICAL RATING'};
+function renderModelLab(){
+  const meta=$('#labMeta');if(!meta)return;
+  const sum=$('#labSummary'),at=$('#labAgentTable'),rec=$('#labRecent');
+  const js=S.journalStats;
+  if(!js){meta.textContent='—';if(sum)sum.innerHTML='<div class="dim">Waiting on the journal stats endpoint — this needs the live host\'s Supabase connection, so it stays empty in a sandboxed/simulated run.</div>';if(at)at.innerHTML='';if(rec)rec.innerHTML='';return;}
+  meta.textContent='updated '+ts()+' · '+js.totalResolved+' resolved rows';
+  const sample=js.overall.sample,gated=sample<20;
+  sum.innerHTML=`<div class="regime" style="grid-template-columns:repeat(4,1fr)">
+   <div class="stat"><div class="k">RESOLVED TRADES</div><div class="v">${js.resolvedTrades}</div><div class="s">of ${js.totalResolved} resolved rows incl. HOLD</div></div>
+   <div class="stat"><div class="k">WIN RATE</div><div class="v ${js.overall.winRate==null?'':js.overall.winRate>=0.5?'up':'dn'}">${js.overall.winRate!=null?(js.overall.winRate*100).toFixed(0)+'%':'—'}</div><div class="s">${sample} outcomes${gated?' · still collecting':''}</div></div>
+   <div class="stat"><div class="k">AVG P&amp;L / TRADE</div><div class="v ${js.overall.avgPnlPct==null?'':js.overall.avgPnlPct>=0?'up':'dn'}">${js.overall.avgPnlPct!=null?pct(js.overall.avgPnlPct,2):'—'}</div><div class="s">unleveraged, size-weighted across TP1/2/3</div></div>
+   <div class="stat"><div class="k">BRIER SCORE</div><div class="v">${js.overall.brier!=null?js.overall.brier.toFixed(3):'—'}</div><div class="s">0 = perfect · 0.25 = a coin flip at 50%</div></div>
+  </div>${gated?`<div class="dim" style="margin-top:10px;font-size:13px">Fewer than 20 resolved trades so far — every number above will keep swinging until the journal has collected more history. Treat this tab as provisional until the per-agent samples below say otherwise.</div>`:''}`;
+  at.innerHTML='<table><tr><th>AGENT</th><th>DIRECTIONAL ACCURACY</th><th>SAMPLE</th><th>READ</th></tr>'+
+    Object.entries(js.agents).map(([k,a])=>{const lowN=a.sample<20;
+      return`<tr><td style="font-family:var(--hud);font-size:12px">${AGENT_LABELS[k]||k}</td><td class="mono ${a.accuracy==null?'dim':a.accuracy>=0.55?'up':a.accuracy<=0.45?'dn':''}">${a.accuracy!=null?(a.accuracy*100).toFixed(0)+'%':'—'}</td><td class="mono">${a.sample}</td><td class="dim" style="font-size:12px">${a.sample===0?'no non-trivial votes yet':lowN?'collecting data':a.accuracy>=0.55?'beating a coin flip so far':a.accuracy<=0.45?'behind a coin flip so far':'roughly coin-flip so far'}</td></tr>`;
+    }).join('')+'</table>'+
+    '<div class="dim" style="font-size:12px;margin-top:8px">Each agent\'s accuracy is independent of what the Chief actually decided — it only checks whether that one agent\'s vote direction matched the coin\'s real 24h price return, so it is the real test of which specialists are adding signal. 50% is a coin flip; nothing here is yet a reason to reweight any agent on its own.</div>';
+  rec.innerHTML=(js.recent&&js.recent.length)?('<table><tr><th>TIME</th><th>COIN</th><th>SIDE</th><th>OUTCOME</th><th>P&amp;L</th></tr>'+
+    js.recent.map(r=>`<tr><td class="dim">${new Date(r.ts).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</td><td><b>${r.symbol}</b></td><td class="${r.side==='LONG'?'up':'dn'}">${r.side}</td><td>${r.outcome||'—'}</td><td class="${r.pnlPct>=0?'up':'dn'}">${r.pnlPct!=null?pct(r.pnlPct,2):'—'}</td></tr>`).join('')+'</table>')
+    :'<div class="dim">No resolved trades yet — check back once the journal has run for 24h+.</div>';
 }
 const SOURCES=[
  ['ws','Binance USDⓈ-M WebSocket','wss://fstream.binance.com/stream (@ticker)','Real-time price, 24h change and volume for all 23 contracts','Real-time'],
@@ -1212,12 +1462,20 @@ const SOURCES=[
  ['cg','CoinGecko Global','api.coingecko.com/api/v3/global (via /api/macro)','Total market cap, BTC / ETH dominance and volume','2 min'],
  ['news','Newswire · 6 outlets','CoinDesk · Cointelegraph · Decrypt · The Block · CryptoSlate RSS + CryptoCompare (via /api/news)','Headlines de-duplicated, sentiment-scored and tagged to coins','4 min'],
  ['etf','US Spot ETF Flows','farside.co.uk btc · eth · sol (via /api/etf)','Daily net flows (US$m) feed the Macro & Flow agent; manual override in the Intel tab','30 min'],
- ['whale','Whale Trade Feed','/fapi/v1/aggTrades · tier-1 majors','Large taker trades ≥ threshold shown live in the Flow Intel tab','20 s']];
+ ['whale','Whale Trade Feed','/fapi/v1/aggTrades · tier-1 majors','Large taker trades ≥ threshold, and their running buy/sell delta ("whale CVD"), shown live in Flow Intel and feeding the Derivatives Analyst','20 s'],
+ ['topLsr','Binance Top-Trader Position Ratio','/futures/data/topLongShortPositionRatio','Smart-money positioning (by size, not account count) vs the retail L/S ratio above — Derivatives Analyst','5 min'],
+ ['basis','Binance Mark/Index Basis','/fapi/v1/premiumIndex (markPrice vs indexPrice)','Perp running hot or cold vs spot — Derivatives Analyst','60 s'],
+ ['orderbook','Binance Order Book Depth','/fapi/v1/depth · tier-1 majors, top 50 levels','Bid/ask volume imbalance, small capped weight — Quant Momentum','25 s'],
+ ['liq','Binance Forced Liquidations','wss://fstream.binance.com/ws/!forceOrder@arr','Exchange-wide liquidation feed; cascades flagged for awareness in Flow Intel, never scored (direction is genuinely ambiguous)','Real-time'],
+ ['journal','Signal Journal','/api/journal → Supabase (service role, server-side only)','Every signal logged, then outcome-checked ~24h later against real candles — feeds the Model Lab scorecard','15 min'],
+ ['intel','Macro &amp; Options Intel','Coinbase · Deribit · DefiLlama · Frankfurter FX · US Treasury (via /api/intel)','DVOL, put/call OI, stablecoin supply, USD strength and 10Y/2Y yields — Macro &amp; Flow Analyst, small capped weights','5 min'],
+ ['calendar','Economic Calendar','ForexFactory weekly high-impact events (via /api/calendar, best-effort)','Caps confidence dashboard-wide inside a ±2h window around high-impact releases','2 h'],
+ ['journalStats','Model Lab Scorecard','/api/journal/stats (aggregated server-side from the journal)','Per-agent directional accuracy, win rate and Brier calibration — Model Lab tab','5 min']];
 function renderSources(){
   if(!S.hosted)setSrc('etf',(S.etf.BTC!=null&&S.etf.BTC!=='')?'ok':'wait',(S.etf.BTC!=null&&S.etf.BTC!=='')?'manual values injected':'enter in Intel tab');
   $('#srcTable').innerHTML='<table><tr><th>SOURCE</th><th>ENDPOINT</th><th>FEEDS</th><th>REFRESH</th><th>STATUS</th><th>LAST</th></tr>'+SOURCES.map(([id,n,e,f,r])=>{const s=S.src[id]||{status:'wait'};const cls={ok:'ok',wait:'wait',blk:'blk',err:'err'}[s.status]||'wait';const lbl={ok:'LIVE',wait:'PENDING',blk:'SANDBOXED',err:'ERROR'}[s.status]||'PENDING';
     return`<tr><td style="font-weight:600">${n}</td><td class="mono cy">${e}</td><td style="font-size:13px">${f}${s.note?`<br><span class="dim" style="font-size:11px">${s.note}</span>`:''}</td><td class="mono">${r}</td><td><span class="st ${cls}">${lbl}</span></td><td class="mono dim">${s.at||'—'}</td></tr>`;}).join('')+'</table>'+
-   `<div style="margin-top:14px;font-size:13px;line-height:1.6" class="dim">Phase 2 sources are already mapped: CoinGlass liquidation heatmaps (API key), Glassnode / CryptoQuant exchange netflows (API key), Deribit options skew and max-pain (public), FRED macro (DXY, rates) and an economic calendar. They need a small server-side proxy, which is the planned next step.</div>`;
+   `<div style="margin-top:14px;font-size:13px;line-height:1.6" class="dim">v1.6 added the signal journal (outcome tracking + the Model Lab scorecard), top-trader positioning, mark/index basis, whale CVD, exchange-wide forced liquidations, order-book imbalance, Deribit DVOL/put-call OI, Coinbase premium, stablecoin supply and real Treasury yields — all free and keyless. Deliberately still out of scope: CoinGlass liquidation heatmaps, Glassnode / CryptoQuant on-chain netflows and Santiment/LunarCrush social data all require a paid API key, and a learned meta-model that reweights the agents needs months of journal data to train on first — both are the natural next steps once this version has run long enough to earn them.</div>`;
 }
 
 /* ============================================================
@@ -1303,7 +1561,7 @@ async function liveCycle(full){
   try{await loadTickers();await loadKlines();if(full){await loadPositioning();}analyseAll();}catch(e){log('chief','Cycle error: '+e.message,'dn');}
 }
 async function boot(){
-  const lines=['> ZINERGE QUANT NEXUS v1.5','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
+  const lines=['> ZINERGE QUANT NEXUS v1.6','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
   const bl=$('#bootlog');for(const l of lines){bl.textContent+=l+'\n';await sleep(220);}
   initBg();buildCards();buildAgents();renderCapital();renderSources();
   try{const h=await getJSON('/api/health',3000);S.hosted=!!(h&&h.ok);}catch(e){S.hosted=false;}
@@ -1321,8 +1579,11 @@ async function boot(){
   if(S.live){md.className='mode live';$('#modeTxt').textContent='LIVE · BINANCE';$('#simbar').style.display='none';log('chief','Live uplink confirmed. Resolving contracts…','up');
     try{await resolveSymbols();}catch(e){log('chief','exchangeInfo failed: '+e.message,'dn');}
     await Promise.all([loadMacro(),loadTickers()]);COINS.forEach(k=>tickCard(S.coins[k.c]));
-    await loadEtf();await loadKlines();await loadPositioning();analyseAll();loadNews().then(analyseAll);openWS();loadWhaleTrades();
-    let n=0;setInterval(()=>{n++;liveCycle(n%5===0);},60e3);setInterval(()=>{loadMacro();loadNews();},S.hosted?120e3:300e3);setInterval(loadEtf,30*60e3);setInterval(loadWhaleTrades,20e3);
+    await loadEtf();await loadKlines();await loadPositioning();analyseAll();loadNews().then(analyseAll);openWS();openLiqWS();loadWhaleTrades();loadOrderBook();
+    loadIntel().then(analyseAll);loadCalendar();loadJournalStats();
+    postJournal();
+    let n=0;setInterval(()=>{n++;liveCycle(n%5===0);},60e3);setInterval(()=>{loadMacro();loadNews();},S.hosted?120e3:300e3);setInterval(loadEtf,30*60e3);setInterval(loadWhaleTrades,20e3);setInterval(loadOrderBook,25e3);setInterval(postJournal,15*60e3);
+    setInterval(()=>loadIntel().then(analyseAll),5*60e3);setInterval(loadCalendar,2*60*60e3);setInterval(loadJournalStats,5*60e3);
   }else{
     md.className='mode sim';$('#modeTxt').textContent='SIMULATION';$('#simbar').style.display='block';
     log('chief','Outside network blocked by the host sandbox. Running the engine on a simulated feed.','am');
@@ -1334,9 +1595,9 @@ async function boot(){
 
 /* UI wiring */
 setInterval(()=>{$('#clock').textContent=new Date().toLocaleTimeString('en-GB')+' '+(Intl.DateTimeFormat().resolvedOptions().timeZone.split('/').pop()||'');},1000);
-const VIEWS=['command','agents','intel','capital','sources','flow'];
+const VIEWS=['command','agents','intel','capital','sources','flow','lab'];
 function show(v){if(!VIEWS.includes(v))v='command';document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('on',x.id==='v-'+v));
-  if(v==='command')setTimeout(()=>COINS.forEach(k=>drawSpark(S.coins[k.c])),30);if(v==='sources')renderSources();if(v==='capital')renderCapital();if(v==='flow')renderFlowIntel();try{if(location.hash.slice(1)!==v)history.replaceState(null,'','#'+v);}catch(e){}}
+  if(v==='command')setTimeout(()=>COINS.forEach(k=>drawSpark(S.coins[k.c])),30);if(v==='sources')renderSources();if(v==='capital')renderCapital();if(v==='flow')renderFlowIntel();if(v==='intel')renderIntelPanel();if(v==='lab'&&typeof renderModelLab==='function')renderModelLab();try{if(location.hash.slice(1)!==v)history.replaceState(null,'','#'+v);}catch(e){}}
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>show(b.dataset.v));
 addEventListener('hashchange',()=>show(location.hash.slice(1)));
 document.querySelectorAll('.sect').forEach(b=>b.onclick=()=>{document.querySelectorAll('.sect').forEach(x=>x.classList.toggle('on',x===b));$('#sect-crypto').style.display=b.dataset.sect==='crypto'?'':'none';$('#sect-stocks').style.display=b.dataset.sect==='stocks'?'':'none';if(b.dataset.sect==='stocks')renderStocks();});
