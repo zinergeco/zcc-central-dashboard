@@ -249,7 +249,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
 
 <div class="app">
 <header>
-  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.7.1</small></div>
+  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.8</small></div>
   <div class="hdr-mid">
     <button class="sect on" data-sect="crypto">◈ CRYPTO FUTURES</button>
     <button class="sect" data-sect="stocks">◇ GLOBAL STOCKS</button>
@@ -273,6 +273,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
   <button data-v="sources">⟁ DATA SOURCES</button>
   <button data-v="flow">⬡ FLOW INTEL</button>
   <button data-v="lab">⚙ MODEL LAB</button>
+  <button data-v="position">◈ POSITION MODE</button>
 </nav>
 
 <section class="view on" id="v-command">
@@ -405,6 +406,16 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
   </div>
   <div class="panel" style="margin-top:14px"><div class="ptitle">RECENT RESOLVED SIGNALS</div><div id="labRecent"></div></div>
 </section>
+
+<section class="view" id="v-position">
+  <div class="panel"><div class="ptitle">POSITION MODE · WEEKLY TREND MODEL <span class="r" id="posMeta">—</span></div>
+    <div class="dim" style="font-size:13px;margin-bottom:10px">A third, far slower lens for holding across weeks and months, not hours or days. Built entirely off weekly candles: a 10-week EMA vs a 40-week EMA sets the regime (Weinstein-style Stage 1 Basing / Stage 2 Uptrend / Stage 3 Topping / Stage 4 Downtrend), and the plan is to stay with the trend for as long as it holds — not to fish for a fixed target like every other lens on this dashboard. The only "target" here is time: stay in while the 10-week EMA keeps rising (long) or falling (short) under price, and treat a weekly close back through it — or the hard invalidation level in the table — as the exit.</div>
+    <div id="posTable"></div>
+  </div>
+  <div class="panel" style="margin-top:14px"><div class="ptitle">HOW THIS DIFFERS FROM SWING MODE</div>
+    <div style="font-size:14px;line-height:1.65">The Position/Swing Mode lens inside each coin's drawer (daily candles, EMA21/50, 2.5× ATR stop, 2R/4R/7R targets) is built for a trade that resolves in days to about two weeks. Position Mode here is a separate model for genuinely holding through multiple macro cycles: weekly candles, a 10-week/40-week EMA regime instead of a crossover trigger, and no profit ladder at all — because inventing a bigger R-multiple off a wider stop is just the intraday model wearing a costume, not a real answer to "how long can this run." The honest answer for a multi-month hold is a trend-following exit, so that's what this tab gives.</div>
+  </div>
+</section>
 </div>
 
 <!-- ===================== STOCKS ===================== -->
@@ -418,7 +429,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
   </div>
 </div>
 
-<footer>ZCC Trading · Quant Nexus v1.7.1 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
+<footer>ZCC Trading · Quant Nexus v1.8 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
 </div>
 
 <div id="shade"></div>
@@ -486,7 +497,7 @@ const S={live:false,hosted:false,etfAuto:{},etfRaw:null,etfFund:'BTC',coins:{},f
   liqs:[],liqCascade:{},intel:null,calendar:[],calendarAt:0,journalStats:null,journalPostedAt:0};
 COINS.forEach(k=>S.coins[k.c]={...k,sym:null,dataSym:null,quote:'USDC',fallback:false,price:null,prev:null,chg:0,vol:0,funding:null,
   markPrice:null,indexPrice:null,basis:null,topLsr:null,obImbalance:null,cvd:0,
-  k15:[],k1h:[],k4h:[],k12h:[],k1d:[],oi:[],lsr:null,taker:null,sig:null,techRating:null,predict:null});
+  k15:[],k1h:[],k4h:[],k12h:[],k1d:[],k1w:[],oi:[],lsr:null,taker:null,sig:null,techRating:null,predict:null});
 try{const c=JSON.parse(localStorage.getItem('qn_cap')||'null');if(c)Object.assign(S.cap,c);const e=JSON.parse(localStorage.getItem('qn_etf')||'null');if(e)Object.assign(S.etf,e);}catch(e){}
 
 /* ============================================================
@@ -583,6 +594,17 @@ async function loadKlines(){
       co.k15=mapK(a);co.k1h=mapK(b);co.k4h=mapK(c);co.k12h=mapK(d);co.k1d=mapK(dd);ok++;}catch(e){}
     await sleep(60);}
   setSrc('klines',ok?'ok':'err',ok+'/'+COINS.length+' contracts · 15m/1h/4h/12h/1d');
+}
+/* Weekly candles for POSITION MODE — deliberately NOT folded into the 60s
+   liveCycle()/loadKlines() loop above. Weekly bars barely move intraday, so
+   this is fetched once on boot and refreshed on its own slow 4h interval. */
+async function loadWeeklyKlines(){
+  setSrc('klinesW','wait');let ok=0;
+  for(const k of COINS){const co=S.coins[k.c];if(!co.sym)continue;
+    try{co.k1w=mapK(await getJSON(`${FAPI}/fapi/v1/klines?symbol=${co.sym}&interval=1w&limit=160`));ok++;}catch(e){}
+    await sleep(60);}
+  setSrc('klinesW',ok?'ok':'err',ok+'/'+COINS.length+' contracts · 1w · refreshed every 4h');
+  if(typeof renderPositionMode==='function'&&positionTabActive())renderPositionMode();
 }
 async function loadTickers(){
   try{const [t,p]=await Promise.all([getJSON(FAPI+'/fapi/v1/ticker/24hr'),getJSON(FAPI+'/fapi/v1/premiumIndex')]);
@@ -699,6 +721,7 @@ async function loadJournalStats(){
    FLOW INTEL — volume/liquidity gaps, whale trades, ETF flows
 ============================================================ */
 function flowTabActive(){const el=$('#v-flow');return!!(el&&el.classList.contains('on'));}
+function positionTabActive(){const el=$('#v-position');return!!(el&&el.classList.contains('on'));}
 
 function volumeProfile(K,bins=26){
   if(!K||K.length<10)return null;
@@ -928,12 +951,12 @@ function simInit(){
   COINS.forEach((k,i)=>{const co=S.coins[k.c];const r=rnd(seed*31+i*7+1);const vol=k.lev===15?0.004:k.lev===10?0.006:k.lev===5?0.008:0.011;const drift=(r()-.5)*vol*.5;
     co.sym=(k.c==='PEPE'?'1000PEPE':k.c)+'USDC';co.dataSym=co.sym;co.quote='USDC';co.mult=k.c==='PEPE'?1000:1;
     const base=SIM_BASE[k.c]*(k.c==='PEPE'?1000:1);
-    co.k15=simSeries(base,160,9e5,vol,r,drift);co.k1h=simSeries(base,160,36e5,vol*1.9,r,drift*2);co.k4h=simSeries(base,160,144e5,vol*3.6,r,drift*3);co.k12h=simSeries(base,160,432e5,vol*5,r,drift*4);co.k1d=simSeries(base,160,864e5,vol*6,r,drift*5);
+    co.k15=simSeries(base,160,9e5,vol,r,drift);co.k1h=simSeries(base,160,36e5,vol*1.9,r,drift*2);co.k4h=simSeries(base,160,144e5,vol*3.6,r,drift*3);co.k12h=simSeries(base,160,432e5,vol*5,r,drift*4);co.k1d=simSeries(base,160,864e5,vol*6,r,drift*5);co.k1w=simSeries(base,160,6048e5,vol*8,r,drift*6);
     co.price=base;co.chg=(r()-.45)*8;co.vol=1e8*(1+r()*20);co.funding=(r()-.4)*0.04;
     co.oi=Array.from({length:25},(_,j)=>1e8*(1+j*(r()-.45)*.02));co.lsr=0.7+r()*1.9;co.taker=0.85+r()*.3;});
   S.fng=Math.round(25+Math.random()*50);S.fngPrev=S.fng-4;S.fngLbl=S.fng<45?'Fear':S.fng>55?'Greed':'Neutral';
   S.global={mcap:3.3e12,mchg:1.2,dom:58.4,ethDom:11.8,vol:1.2e11};
-  ['exinfo','ticker','funding','klines','oi','lsr','taker','ws','fng','cg','news'].forEach(id=>setSrc(id,'blk','sandbox · simulated'));
+  ['exinfo','ticker','funding','klines','klinesW','oi','lsr','taker','ws','fng','cg','news'].forEach(id=>setSrc(id,'blk','sandbox · simulated'));
 }
 function simTick(){for(const k of COINS){const co=S.coins[k.c];const vol=k.lev===15?0.0008:k.lev===10?0.0012:k.lev===5?0.0016:0.0022;co.prev=co.price;co.price*=1+(Math.random()-.5)*vol*2;
   const b=co.k15.at(-1);b.c=co.price;b.h=Math.max(b.h,co.price);b.l=Math.min(b.l,co.price);tickCard(co);}}
@@ -1118,6 +1141,38 @@ function buildSwingPlan(co){
   const tp=[2,4,7].map(r=>bias==='SHORT'?entry-slDist*r:entry+slDist*r);
   const fundingDailyPct=co.funding!=null?Math.abs(co.funding)*3:null; // funding settles ~3×/day (every 8h)
   return{bias,entry,sl,tp,slPct:slDist/entry*100,atrPct:a1/p*100,swingL,swingH,fundingDailyPct};
+}
+
+/* POSITION MODE — a third, far slower lens for genuinely holding weeks to
+   months, not days. Weekly candles, a 10-week/40-week EMA regime (the
+   weekly equivalent of a 50/200-day "golden cross"), and a Weinstein-style
+   4-stage read (Basing / Uptrend / Topping / Downtrend) off the 40-week
+   EMA's own slope. Deliberately NO fixed profit-target ladder like Swing
+   Mode's 2R/4R/7R — inventing a bigger R-multiple off a wider stop is just
+   the intraday model in a costume. The honest exit for a multi-month hold
+   is trend-following: stay in while price holds the right side of the
+   10-week EMA (the "trail level"), exit on a weekly close back through it
+   or on the hard ATR/swing invalidation level below. */
+function buildPositionPlan(co){
+  const k=co.k1w;if(!k||k.length<44)return null;
+  const cl=k.map(b=>b.c);const e10=ema(cl,10),e40=ema(cl,40);
+  const i=cl.length-1;
+  const bias=e10[i]>e40[i]?'LONG':'SHORT';
+  const slopePct=(e40[i]-e40[i-4])/e40[i-4]*100;
+  const stage=bias==='LONG'
+    ?(slopePct>0.25?'STAGE 2 · UPTREND':'STAGE 1 · BASING')
+    :(slopePct<-0.25?'STAGE 4 · DOWNTREND':'STAGE 3 · TOPPING');
+  let weeksInRegime=1;
+  for(let j=i;j>0;j--){if((e10[j]>e40[j])!==(e10[j-1]>e40[j-1]))break;weeksInRegime++;}
+  const p=co.price||cl[i];
+  const a1=atr(k,14).at(-1)||p*.05;
+  const k12=k.slice(-12);const swingL=Math.min(...k12.map(b=>b.l)),swingH=Math.max(...k12.map(b=>b.h));
+  const L=bias==='LONG';
+  const hardStop=L?Math.min(p-3*a1,swingL-0.3*a1):Math.max(p+3*a1,swingH+0.3*a1);
+  const fundingDailyPct=co.funding!=null?Math.abs(co.funding)*3:null; // funding settles ~3×/day (every 8h)
+  return{bias,stage,weeksInRegime,entry:p,hardStop,trailLevel:e10[i],
+    stopPct:Math.abs(p-hardStop)/p*100,atrPct:a1/p*100,
+    fundingDailyPct,cost30:fundingDailyPct!=null?fundingDailyPct*30:null,cost90:fundingDailyPct!=null?fundingDailyPct*90:null};
 }
 
 /* NEWS SCORING */
@@ -1467,10 +1522,24 @@ function renderModelLab(){
     js.recent.map(r=>`<tr><td class="dim">${new Date(r.ts).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</td><td><b>${r.symbol}</b></td><td class="${r.side==='LONG'?'up':'dn'}">${r.side}</td><td>${r.outcome||'—'}</td><td class="${r.pnlPct>=0?'up':'dn'}">${r.pnlPct!=null?pct(r.pnlPct,2):'—'}</td></tr>`).join('')+'</table>')
     :'<div class="dim">No resolved trades yet — check back once the journal has run for 24h+.</div>';
 }
+function renderPositionMode(){
+  const meta=$('#posMeta');if(!meta)return;
+  const rows=COINS.map(k=>({co:S.coins[k.c],plan:buildPositionPlan(S.coins[k.c])}));
+  const have=rows.filter(x=>x.plan);
+  const tbl=$('#posTable');if(!tbl)return;
+  if(!have.length){meta.textContent='—';tbl.innerHTML='<div class="dim">Gathering weekly candle history — Position Mode needs 44+ weekly bars (≈10 months) per coin before a regime can be read. This refreshes every 4 hours once there\'s enough history.</div>';return;}
+  meta.textContent='updated '+ts()+' · '+have.length+'/'+COINS.length+' contracts have 44+ weeks of history';
+  tbl.innerHTML='<table><tr><th>COIN</th><th>WEEKLY REGIME</th><th>BIAS</th><th>WEEKS IN REGIME</th><th>PRICE</th><th>10W TREND LEVEL</th><th>HARD INVALIDATION</th><th>WEEKLY ATR%</th><th>FUNDING COST 30D / 90D</th></tr>'+
+    have.map(({co,plan:p})=>{const stageCls=p.stage.includes('UPTREND')?'up':p.stage.includes('DOWNTREND')?'dn':'am';const biasCls=p.bias==='LONG'?'up':'dn';
+      return`<tr><td><b>${co.c}</b></td><td class="${stageCls}">${p.stage}</td><td class="${biasCls}">${p.bias}</td><td class="mono">${p.weeksInRegime}w</td><td class="mono">${fmtP(p.entry)}</td><td class="mono">${fmtP(p.trailLevel)}</td><td class="mono dn">${fmtP(p.hardStop)} <span class="dim">(−${p.stopPct.toFixed(1)}%)</span></td><td class="mono">${p.atrPct.toFixed(2)}%</td><td class="mono ${p.cost30==null?'dim':''}">${p.cost30!=null?'−'+p.cost30.toFixed(2)+'% / −'+p.cost90.toFixed(2)+'%':'—'}</td></tr>`;
+    }).join('')+'</table>'+
+    '<div class="dim" style="font-size:12px;margin-top:10px">No fixed profit target in this table by design — see "How this differs from Swing Mode" below. WEEKS IN REGIME counts consecutive weekly bars since the 10-week/40-week EMA cross; a very low count means the regime just flipped and deserves less confidence. HARD INVALIDATION is 3× the weekly ATR beyond entry, floored/capped by the prior 12-week swing high or low — treat it as a last-resort stop, not a target to trail tightly. Funding costs assume a leveraged perp held the whole period; spot or a dated future avoids this entirely.</div>';
+}
 const SOURCES=[
  ['ws','Binance USDⓈ-M WebSocket','wss://fstream.binance.com/stream (@ticker)','Real-time price, 24h change and volume for all 23 contracts','Real-time'],
  ['exinfo','Binance Exchange Info','fapi.binance.com/fapi/v1/exchangeInfo','Resolves USDC contracts; falls back to USDT where no USDC pair exists','On load'],
  ['klines','Binance Klines','/fapi/v1/klines · 15m · 1h · 4h · 12h · 1d','Market Analyst, Quant Momentum and Technical Rating Engine: EMAs, RSI, MACD, ATR, Bollinger, Stoch RSI, ADX, Ichimoku, VWAP, OBV, pivots, volume','60 s'],
+ ['klinesW','Binance Klines · Weekly','/fapi/v1/klines · 1w','Position Mode: 10-week/40-week EMA regime, stage classification and the trend-following trail/invalidation levels','4 h'],
  ['funding','Binance Premium Index','/fapi/v1/premiumIndex','Funding rate and mark price for the Derivatives Analyst','60 s'],
  ['ticker','Binance 24h Ticker','/fapi/v1/ticker/24hr','Snapshot backup to the WebSocket and relative strength','60 s'],
  ['oi','Binance Open Interest History','/futures/data/openInterestHist','OI change vs price (new money or covering)','5 min'],
@@ -1493,7 +1562,7 @@ function renderSources(){
   if(!S.hosted)setSrc('etf',(S.etf.BTC!=null&&S.etf.BTC!=='')?'ok':'wait',(S.etf.BTC!=null&&S.etf.BTC!=='')?'manual values injected':'enter in Intel tab');
   $('#srcTable').innerHTML='<table><tr><th>SOURCE</th><th>ENDPOINT</th><th>FEEDS</th><th>REFRESH</th><th>STATUS</th><th>LAST</th></tr>'+SOURCES.map(([id,n,e,f,r])=>{const s=S.src[id]||{status:'wait'};const cls={ok:'ok',wait:'wait',blk:'blk',err:'err'}[s.status]||'wait';const lbl={ok:'LIVE',wait:'PENDING',blk:'SANDBOXED',err:'ERROR'}[s.status]||'PENDING';
     return`<tr><td style="font-weight:600">${n}</td><td class="mono cy">${e}</td><td style="font-size:13px">${f}${s.note?`<br><span class="dim" style="font-size:11px">${s.note}</span>`:''}</td><td class="mono">${r}</td><td><span class="st ${cls}">${lbl}</span></td><td class="mono dim">${s.at||'—'}</td></tr>`;}).join('')+'</table>'+
-   `<div style="margin-top:14px;font-size:13px;line-height:1.6" class="dim">v1.6 added the signal journal (outcome tracking + the Model Lab scorecard), top-trader positioning, mark/index basis, whale CVD, exchange-wide forced liquidations, order-book imbalance, Deribit DVOL/put-call OI, Coinbase premium, stablecoin supply and real Treasury yields — all free and keyless. v1.7 expanded whale-trade tracking from the 6 Tier-I majors to all 23 coins, and fixed Live ETF Flows to honestly surface the real per-coin error (Farside is currently 403-blocking this server) instead of sitting silently empty. v1.7.1 fixed a crash in the Tech-Rating agent summary (it could pick a coin with no rating yet as "leader" and throw) that was silently killing every step after it on boot — which is why Intel & News, the Macro/Options poll, the economic calendar and the live auto-refresh could all go blank at once even though their data sources were healthy. Deliberately still out of scope: a working ETF auto-feed (needs a paid/keyed replacement for Farside — pending your provider choice), CoinGlass liquidation heatmaps, Glassnode / CryptoQuant on-chain netflows and Santiment/LunarCrush social data all require a paid API key, and a learned meta-model that reweights the agents needs months of journal data to train on first.</div>`;
+   `<div style="margin-top:14px;font-size:13px;line-height:1.6" class="dim">v1.6 added the signal journal (outcome tracking + the Model Lab scorecard), top-trader positioning, mark/index basis, whale CVD, exchange-wide forced liquidations, order-book imbalance, Deribit DVOL/put-call OI, Coinbase premium, stablecoin supply and real Treasury yields — all free and keyless. v1.7 expanded whale-trade tracking from the 6 Tier-I majors to all 23 coins, and fixed Live ETF Flows to honestly surface the real per-coin error (Farside is currently 403-blocking this server) instead of sitting silently empty. v1.7.1 fixed a crash in the Tech-Rating agent summary (it could pick a coin with no rating yet as "leader" and throw) that was silently killing every step after it on boot — which is why Intel & News, the Macro/Options poll, the economic calendar and the live auto-refresh could all go blank at once even though their data sources were healthy. v1.8 added Position Mode: a new weekly-candle 10-week/40-week EMA trend model, separate from the existing daily-candle Swing Mode in each coin's drawer, for genuinely holding across weeks and months with a trend-following exit instead of a fixed target. Deliberately still out of scope: a working ETF auto-feed (needs a paid/keyed replacement for Farside — pending your provider choice), CoinGlass liquidation heatmaps, Glassnode / CryptoQuant on-chain netflows and Santiment/LunarCrush social data all require a paid API key, and a learned meta-model that reweights the agents needs months of journal data to train on first.</div>`;
 }
 
 /* ============================================================
@@ -1560,7 +1629,7 @@ function initBg(){const c=$('#bgfx');const g=c.getContext('2d');let W,H;const P=
 ============================================================ */
 function analyseAll(){
   analyse(S.coins.BTC);COINS.filter(k=>k.c!=='BTC').forEach(k=>analyse(S.coins[k.c]));
-  COINS.forEach(k=>renderCard(S.coins[k.c]));renderRegime();renderAgents();renderCapital();renderSources();colorNodes();if(S.openCoin)renderDrawer();
+  COINS.forEach(k=>renderCard(S.coins[k.c]));renderRegime();renderAgents();renderCapital();renderSources();colorNodes();if(S.openCoin)renderDrawer();if(typeof renderPositionMode==='function'&&positionTabActive())renderPositionMode();
   const L=COINS.filter(k=>S.coins[k.c].sig.side==='LONG').map(k=>k.c),Sh=COINS.filter(k=>S.coins[k.c].sig.side==='SHORT').map(k=>k.c);
   log('chief',`Cycle complete. LONG [${L.join(' ')||'—'}] · SHORT [${Sh.join(' ')||'—'}] · net ${S.lastScore.toFixed(1)}`);
 }
@@ -1579,7 +1648,7 @@ async function liveCycle(full){
   try{await loadTickers();await loadKlines();if(full){await loadPositioning();}analyseAll();}catch(e){log('chief','Cycle error: '+e.message,'dn');}
 }
 async function boot(){
-  const lines=['> ZINERGE QUANT NEXUS v1.7.1','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
+  const lines=['> ZINERGE QUANT NEXUS v1.8','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
   const bl=$('#bootlog');for(const l of lines){bl.textContent+=l+'\n';await sleep(220);}
   initBg();buildCards();buildAgents();renderCapital();renderSources();
   try{const h=await getJSON('/api/health',3000);S.hosted=!!(h&&h.ok);}catch(e){S.hosted=false;}
@@ -1598,6 +1667,7 @@ async function boot(){
     try{await resolveSymbols();}catch(e){log('chief','exchangeInfo failed: '+e.message,'dn');}
     await Promise.all([loadMacro(),loadTickers()]);COINS.forEach(k=>tickCard(S.coins[k.c]));
     await loadEtf();await loadKlines();await loadPositioning();
+    try{await loadWeeklyKlines();}catch(e){log('chief','Weekly klines error: '+e.message,'dn');}
     // Each step below is independently guarded: a bug in any one render/poll
     // path (like the techRating leader crash this fixed) must never again be
     // able to take down every later step in this chain — news, websockets,
@@ -1610,7 +1680,7 @@ async function boot(){
     try{loadOrderBook();}catch(e){log('chief','Order book error: '+e.message,'dn');}
     loadIntel().then(analyseAll);loadCalendar();loadJournalStats();
     postJournal();
-    let n=0;setInterval(()=>{n++;liveCycle(n%5===0);},60e3);setInterval(()=>{loadMacro();loadNews();},S.hosted?120e3:300e3);setInterval(loadEtf,30*60e3);setInterval(loadWhaleTrades,20e3);setInterval(loadOrderBook,25e3);setInterval(postJournal,15*60e3);
+    let n=0;setInterval(()=>{n++;liveCycle(n%5===0);},60e3);setInterval(()=>{loadMacro();loadNews();},S.hosted?120e3:300e3);setInterval(loadEtf,30*60e3);setInterval(loadWhaleTrades,20e3);setInterval(loadOrderBook,25e3);setInterval(postJournal,15*60e3);setInterval(loadWeeklyKlines,4*60*60e3);
     setInterval(()=>loadIntel().then(analyseAll),5*60e3);setInterval(loadCalendar,2*60*60e3);setInterval(loadJournalStats,5*60e3);
   }else{
     md.className='mode sim';$('#modeTxt').textContent='SIMULATION';$('#simbar').style.display='block';
@@ -1623,9 +1693,9 @@ async function boot(){
 
 /* UI wiring */
 setInterval(()=>{$('#clock').textContent=new Date().toLocaleTimeString('en-GB')+' '+(Intl.DateTimeFormat().resolvedOptions().timeZone.split('/').pop()||'');},1000);
-const VIEWS=['command','agents','intel','capital','sources','flow','lab'];
+const VIEWS=['command','agents','intel','capital','sources','flow','lab','position'];
 function show(v){if(!VIEWS.includes(v))v='command';document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('on',x.id==='v-'+v));
-  if(v==='command')setTimeout(()=>COINS.forEach(k=>drawSpark(S.coins[k.c])),30);if(v==='sources')renderSources();if(v==='capital')renderCapital();if(v==='flow')renderFlowIntel();if(v==='intel')renderIntelPanel();if(v==='lab'&&typeof renderModelLab==='function')renderModelLab();try{if(location.hash.slice(1)!==v)history.replaceState(null,'','#'+v);}catch(e){}}
+  if(v==='command')setTimeout(()=>COINS.forEach(k=>drawSpark(S.coins[k.c])),30);if(v==='sources')renderSources();if(v==='capital')renderCapital();if(v==='flow')renderFlowIntel();if(v==='intel')renderIntelPanel();if(v==='lab'&&typeof renderModelLab==='function')renderModelLab();if(v==='position'&&typeof renderPositionMode==='function')renderPositionMode();try{if(location.hash.slice(1)!==v)history.replaceState(null,'','#'+v);}catch(e){}}
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>show(b.dataset.v));
 addEventListener('hashchange',()=>show(location.hash.slice(1)));
 document.querySelectorAll('.sect').forEach(b=>b.onclick=()=>{document.querySelectorAll('.sect').forEach(x=>x.classList.toggle('on',x===b));$('#sect-crypto').style.display=b.dataset.sect==='crypto'?'':'none';$('#sect-stocks').style.display=b.dataset.sect==='stocks'?'':'none';if(b.dataset.sect==='stocks')renderStocks();});
