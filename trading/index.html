@@ -249,7 +249,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
 
 <div class="app">
 <header>
-  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.7</small></div>
+  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.7.1</small></div>
   <div class="hdr-mid">
     <button class="sect on" data-sect="crypto">◈ CRYPTO FUTURES</button>
     <button class="sect" data-sect="stocks">◇ GLOBAL STOCKS</button>
@@ -418,7 +418,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
   </div>
 </div>
 
-<footer>ZCC Trading · Quant Nexus v1.7 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
+<footer>ZCC Trading · Quant Nexus v1.7.1 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
 </div>
 
 <div id="shade"></div>
@@ -1341,7 +1341,15 @@ function renderAgents(){
   set('quant',`Top relative strength: <b class="up">${top('quant',1).c}</b> · weakest: <b class="dn">${top('quant',-1).c}</b>`);
   set('news',S.news.length?`${S.news.length} headlines scored · most positive: <b class="up">${top('news',1).c}</b>`:'<span class="am">Newswire offline (sandbox / API limit)</span>');
   const techs=cs.filter(c=>c.techRating);
-  set('tech',techs.length?`Leader: <b class="${top('tech',1).techRating.overall.includes('SELL')?'dn':top('tech',1).techRating.overall.includes('BUY')?'up':'am'}">${top('tech',1).c} ${top('tech',1).techRating.overall}</b> · ${techs.filter(c=>c.techRating.overall.includes('BUY')).length} bullish / ${techs.filter(c=>c.techRating.overall.includes('SELL')).length} bearish ratings across the book`:'Awaiting indicator history…');
+  // NB: must rank the LEADER within techs (coins that actually have a techRating),
+  // never within cs via top('tech',1) — that sorts by raw.tech across every
+  // signalled coin, which can pick a coin with no techRating yet (e.g. a
+  // newer Binance listing without enough candle history) and crash on
+  // .techRating.overall. This previously broke the whole post-boot sequence
+  // (news/intel/calendar/whale polling never started) because the exception
+  // was uncaught inside the same synchronous chain as boot()'s later steps.
+  const topTech=techs.length?techs.slice().sort((a,b)=>(b.sig.raw.tech||0)-(a.sig.raw.tech||0))[0]:null;
+  set('tech',topTech?`Leader: <b class="${topTech.techRating.overall.includes('SELL')?'dn':topTech.techRating.overall.includes('BUY')?'up':'am'}">${topTech.c} ${topTech.techRating.overall}</b> · ${techs.filter(c=>c.techRating.overall.includes('BUY')).length} bullish / ${techs.filter(c=>c.techRating.overall.includes('SELL')).length} bearish ratings across the book`:'Awaiting indicator history…');
   const vetoes=cs.filter(c=>c.sig.why.some(w=>w.includes('VETO'))).map(c=>c.c);set('risk',vetoes.length?`Vetoed (too volatile for leverage): <b class="am">${vetoes.join(', ')}</b>`:'No vetoes. All stops sit safely inside liquidation buffers.');
   const act=cs.filter(c=>c.sig.side!=='HOLD'&&c.sig.conf>=S.cap.minConf);set('fin',`${act.length} trades clear your ${S.cap.minConf}% bar. Take at most <b>${S.cap.maxPos}</b> at ${S.cap.riskPct}% risk each.`);
   // flow out list
@@ -1485,7 +1493,7 @@ function renderSources(){
   if(!S.hosted)setSrc('etf',(S.etf.BTC!=null&&S.etf.BTC!=='')?'ok':'wait',(S.etf.BTC!=null&&S.etf.BTC!=='')?'manual values injected':'enter in Intel tab');
   $('#srcTable').innerHTML='<table><tr><th>SOURCE</th><th>ENDPOINT</th><th>FEEDS</th><th>REFRESH</th><th>STATUS</th><th>LAST</th></tr>'+SOURCES.map(([id,n,e,f,r])=>{const s=S.src[id]||{status:'wait'};const cls={ok:'ok',wait:'wait',blk:'blk',err:'err'}[s.status]||'wait';const lbl={ok:'LIVE',wait:'PENDING',blk:'SANDBOXED',err:'ERROR'}[s.status]||'PENDING';
     return`<tr><td style="font-weight:600">${n}</td><td class="mono cy">${e}</td><td style="font-size:13px">${f}${s.note?`<br><span class="dim" style="font-size:11px">${s.note}</span>`:''}</td><td class="mono">${r}</td><td><span class="st ${cls}">${lbl}</span></td><td class="mono dim">${s.at||'—'}</td></tr>`;}).join('')+'</table>'+
-   `<div style="margin-top:14px;font-size:13px;line-height:1.6" class="dim">v1.6 added the signal journal (outcome tracking + the Model Lab scorecard), top-trader positioning, mark/index basis, whale CVD, exchange-wide forced liquidations, order-book imbalance, Deribit DVOL/put-call OI, Coinbase premium, stablecoin supply and real Treasury yields — all free and keyless. v1.7 expanded whale-trade tracking from the 6 Tier-I majors to all 23 coins, and fixed Live ETF Flows to honestly surface the real per-coin error (Farside is currently 403-blocking this server) instead of sitting silently empty. Deliberately still out of scope: a working ETF auto-feed (needs a paid/keyed replacement for Farside — pending your provider choice), CoinGlass liquidation heatmaps, Glassnode / CryptoQuant on-chain netflows and Santiment/LunarCrush social data all require a paid API key, and a learned meta-model that reweights the agents needs months of journal data to train on first.</div>`;
+   `<div style="margin-top:14px;font-size:13px;line-height:1.6" class="dim">v1.6 added the signal journal (outcome tracking + the Model Lab scorecard), top-trader positioning, mark/index basis, whale CVD, exchange-wide forced liquidations, order-book imbalance, Deribit DVOL/put-call OI, Coinbase premium, stablecoin supply and real Treasury yields — all free and keyless. v1.7 expanded whale-trade tracking from the 6 Tier-I majors to all 23 coins, and fixed Live ETF Flows to honestly surface the real per-coin error (Farside is currently 403-blocking this server) instead of sitting silently empty. v1.7.1 fixed a crash in the Tech-Rating agent summary (it could pick a coin with no rating yet as "leader" and throw) that was silently killing every step after it on boot — which is why Intel & News, the Macro/Options poll, the economic calendar and the live auto-refresh could all go blank at once even though their data sources were healthy. Deliberately still out of scope: a working ETF auto-feed (needs a paid/keyed replacement for Farside — pending your provider choice), CoinGlass liquidation heatmaps, Glassnode / CryptoQuant on-chain netflows and Santiment/LunarCrush social data all require a paid API key, and a learned meta-model that reweights the agents needs months of journal data to train on first.</div>`;
 }
 
 /* ============================================================
@@ -1571,7 +1579,7 @@ async function liveCycle(full){
   try{await loadTickers();await loadKlines();if(full){await loadPositioning();}analyseAll();}catch(e){log('chief','Cycle error: '+e.message,'dn');}
 }
 async function boot(){
-  const lines=['> ZINERGE QUANT NEXUS v1.7','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
+  const lines=['> ZINERGE QUANT NEXUS v1.7.1','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
   const bl=$('#bootlog');for(const l of lines){bl.textContent+=l+'\n';await sleep(220);}
   initBg();buildCards();buildAgents();renderCapital();renderSources();
   try{const h=await getJSON('/api/health',3000);S.hosted=!!(h&&h.ok);}catch(e){S.hosted=false;}
@@ -1589,7 +1597,17 @@ async function boot(){
   if(S.live){md.className='mode live';$('#modeTxt').textContent='LIVE · BINANCE';$('#simbar').style.display='none';log('chief','Live uplink confirmed. Resolving contracts…','up');
     try{await resolveSymbols();}catch(e){log('chief','exchangeInfo failed: '+e.message,'dn');}
     await Promise.all([loadMacro(),loadTickers()]);COINS.forEach(k=>tickCard(S.coins[k.c]));
-    await loadEtf();await loadKlines();await loadPositioning();analyseAll();loadNews().then(analyseAll);openWS();openLiqWS();loadWhaleTrades();loadOrderBook();
+    await loadEtf();await loadKlines();await loadPositioning();
+    // Each step below is independently guarded: a bug in any one render/poll
+    // path (like the techRating leader crash this fixed) must never again be
+    // able to take down every later step in this chain — news, websockets,
+    // whale trades and the order book all have to start regardless.
+    try{analyseAll();}catch(e){log('chief','Render cycle error: '+e.message,'dn');}
+    loadNews().then(analyseAll).catch(e=>log('chief','News load error: '+e.message,'dn'));
+    try{openWS();}catch(e){log('chief','Ticker WS error: '+e.message,'dn');}
+    try{openLiqWS();}catch(e){log('chief','Liquidation WS error: '+e.message,'dn');}
+    try{loadWhaleTrades();}catch(e){log('chief','Whale trades error: '+e.message,'dn');}
+    try{loadOrderBook();}catch(e){log('chief','Order book error: '+e.message,'dn');}
     loadIntel().then(analyseAll);loadCalendar();loadJournalStats();
     postJournal();
     let n=0;setInterval(()=>{n++;liveCycle(n%5===0);},60e3);setInterval(()=>{loadMacro();loadNews();},S.hosted?120e3:300e3);setInterval(loadEtf,30*60e3);setInterval(loadWhaleTrades,20e3);setInterval(loadOrderBook,25e3);setInterval(postJournal,15*60e3);
