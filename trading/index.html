@@ -249,7 +249,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
 
 <div class="app">
 <header>
-  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.9</small></div>
+  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.9.1</small></div>
   <div class="hdr-mid">
     <button class="sect on" data-sect="crypto">◈ CRYPTO FUTURES</button>
     <button class="sect" data-sect="stocks">◇ GLOBAL STOCKS</button>
@@ -442,7 +442,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
   </div>
 </div>
 
-<footer>ZCC Trading · Quant Nexus v1.9 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
+<footer>ZCC Trading · Quant Nexus v1.9.1 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
 </div>
 
 <div id="shade"></div>
@@ -1241,28 +1241,54 @@ function analyseWatch(w){
   else verdict='HOLD';
   return{verdict,squeeze,oiCh,fundingDailyPct,volRatio,reasons};
 }
+let wlBusy=false,wlPending=false;
 async function loadWatchlist(){
-  if(!S.wl.length)return;let ok=0,err=0;
-  for(const w of S.wl){
-    try{
-      const [tk,pi,oiRaw,sp,kl]=await Promise.all([
-        getJSON(`${FAPI}/fapi/v1/ticker/24hr?symbol=${w.sym}`),
-        getJSON(`${FAPI}/fapi/v1/premiumIndex?symbol=${w.sym}`),
-        getJSON(`${FAPI}/futures/data/openInterestHist?symbol=${w.sym}&period=1h&limit=25`).catch(()=>[]),
-        getJSON(`https://api.binance.com/api/v3/ticker/24hr?symbol=${w.sym}`).catch(()=>null),
-        getJSON(`${FAPI}/fapi/v1/klines?symbol=${w.sym}&interval=1h&limit=50`)]);
-      w.price=+tk.lastPrice;w.chg=+tk.priceChangePercent;w.futVol24h=+tk.quoteVolume;
-      w.funding=pi.lastFundingRate!=null?+pi.lastFundingRate*100:null;
-      w.oi=Array.isArray(oiRaw)?oiRaw.map(x=>+x.sumOpenInterestValue):[];
-      w.spotVol24h=sp?+sp.quoteVolume:null;
-      w.k1h=mapK(kl);w.err=null;w.an=analyseWatch(w);ok++;
-    }catch(e){w.err=/HTTP 4\d\d/.test(e.message)?'not found on Binance USDⓈ-M futures':e.message;w.an=null;err++;}
-    w.loaded=true;
-    if(!watchTabActive())return; // user navigated away mid-loop — stop hammering Binance for a tab nobody's looking at
-    await sleep(100);
+  // Re-entrancy guard: loadWatchlist() is triggered from three independent places
+  // (tab-open, addWatchPair(), and the 45s interval) and each call loops over the
+  // WHOLE S.wl array. Without this guard, adding pairs quickly launched overlapping
+  // loops that raced on the same w objects — whichever one's fetch resolved last won,
+  // regardless of correctness, which is what caused the flickering "not found" errors
+  // on pairs that were actually loading fine. Only one pass runs at a time; if another
+  // trigger fires mid-pass, we just flag it and run one more pass immediately after.
+  if(wlBusy){wlPending=true;return;}
+  wlBusy=true;
+  try{
+    if(!S.wl.length)return;let ok=0,err=0;
+    for(const w of S.wl){
+      try{
+        const [tk,pi,oiRaw,sp,kl]=await Promise.all([
+          getJSON(`${FAPI}/fapi/v1/ticker/24hr?symbol=${w.sym}`),
+          getJSON(`${FAPI}/fapi/v1/premiumIndex?symbol=${w.sym}`),
+          getJSON(`${FAPI}/futures/data/openInterestHist?symbol=${w.sym}&period=1h&limit=25`).catch(()=>[]),
+          getJSON(`https://api.binance.com/api/v3/ticker/24hr?symbol=${w.sym}`).catch(()=>null),
+          getJSON(`${FAPI}/fapi/v1/klines?symbol=${w.sym}&interval=1h&limit=50`)]);
+        w.price=+tk.lastPrice;w.chg=+tk.priceChangePercent;w.futVol24h=+tk.quoteVolume;
+        w.funding=pi.lastFundingRate!=null?+pi.lastFundingRate*100:null;
+        w.oi=Array.isArray(oiRaw)?oiRaw.map(x=>+x.sumOpenInterestValue):[];
+        w.spotVol24h=sp?+sp.quoteVolume:null;
+        w.k1h=mapK(kl);w.err=null;w.an=analyseWatch(w);ok++;
+      }catch(e){
+        const m=e.message||'';
+        // Only a genuine HTTP 400 from Binance means "this symbol doesn't exist on
+        // USDⓈ-M futures". 418/429 are rate-limit responses (easy to trigger when
+        // several pairs refresh back-to-back) and must NOT be shown as "not found" —
+        // that mislabeling is what made real, working pairs look broken.
+        w.err=/HTTP 400\b/.test(m)?'not found on Binance USDⓈ-M futures':/HTTP (418|429)/.test(m)?'rate-limited by Binance — will retry shortly':m;
+        err++;
+        // Deliberately NOT clearing w.an/w.price/w.chg here: a transient fetch error
+        // should never erase a previously-good signal. The last successful read stays
+        // on screen (renderWatchlist shows a subdued note) until a fresh read replaces it.
+      }
+      w.loaded=true;
+      if(!watchTabActive())return; // user navigated away mid-loop — stop hammering Binance for a tab nobody's looking at
+      await sleep(100);
+    }
+    setSrc('wl',ok?'ok':err?'err':'wait',ok+'/'+S.wl.length+' pairs · refreshes while this tab is open');
+    if(watchTabActive())renderWatchlist();
+  }finally{
+    wlBusy=false;
+    if(wlPending){wlPending=false;loadWatchlist();}
   }
-  setSrc('wl',ok?'ok':err?'err':'wait',ok+'/'+S.wl.length+' pairs · refreshes while this tab is open');
-  if(watchTabActive())renderWatchlist();
 }
 function renderWatchlist(){
   const meta=$('#wlMeta'),tbl=$('#wlTable');if(!meta||!tbl)return;
@@ -1273,7 +1299,14 @@ function renderWatchlist(){
       const a=w.an;const v=a?a.verdict:null;
       const label=v==='LONG'?'▲ BUY':v==='SHORT'?'▼ SELL':'◆ HOLD';
       const chgCls=w.chg==null?'dim':w.chg>=0?'up':'dn';
-      const analysisText=w.err?`<span class="dn">${w.err}</span>`:a&&a.reasons.length?a.reasons.join(' · '):(w.loaded?'No strong signal either way — insufficient edge to call it.':'Loading…');
+      // A current w.err only gets the hard red treatment if we've NEVER had a good
+      // read for this pair (a is null) — otherwise we keep showing the last good
+      // analysis with a small subdued note, so a transient/rate-limited refresh never
+      // blanks out a signal that was working moments ago.
+      const analysisText=a&&a.reasons.length
+        ?a.reasons.join(' · ')+(w.err?` <span class="dim">· last refresh: ${w.err}</span>`:'')
+        :w.err?`<span class="dn">${w.err}</span>`
+        :(w.loaded?'No strong signal either way — insufficient edge to call it.':'Loading…');
       return`<tr><td><button class="wlx" data-sym="${w.sym}" title="Remove from watchlist" style="background:none;border:1px solid var(--line2);color:var(--dim);cursor:pointer;font-family:var(--mono);padding:2px 7px">×</button></td>
        <td><b>${w.base}</b><span class="dim mono" style="font-size:10px">/${w.quote}</span></td>
        <td class="mono">${fmtP(w.price)}</td>
@@ -1673,7 +1706,7 @@ function renderSources(){
   if(!S.hosted)setSrc('etf',(S.etf.BTC!=null&&S.etf.BTC!=='')?'ok':'wait',(S.etf.BTC!=null&&S.etf.BTC!=='')?'manual values injected':'enter in Intel tab');
   $('#srcTable').innerHTML='<table><tr><th>SOURCE</th><th>ENDPOINT</th><th>FEEDS</th><th>REFRESH</th><th>STATUS</th><th>LAST</th></tr>'+SOURCES.map(([id,n,e,f,r])=>{const s=S.src[id]||{status:'wait'};const cls={ok:'ok',wait:'wait',blk:'blk',err:'err'}[s.status]||'wait';const lbl={ok:'LIVE',wait:'PENDING',blk:'SANDBOXED',err:'ERROR'}[s.status]||'PENDING';
     return`<tr><td style="font-weight:600">${n}</td><td class="mono cy">${e}</td><td style="font-size:13px">${f}${s.note?`<br><span class="dim" style="font-size:11px">${s.note}</span>`:''}</td><td class="mono">${r}</td><td><span class="st ${cls}">${lbl}</span></td><td class="mono dim">${s.at||'—'}</td></tr>`;}).join('')+'</table>'+
-   `<div style="margin-top:14px;font-size:13px;line-height:1.6" class="dim">v1.6 added the signal journal (outcome tracking + the Model Lab scorecard), top-trader positioning, mark/index basis, whale CVD, exchange-wide forced liquidations, order-book imbalance, Deribit DVOL/put-call OI, Coinbase premium, stablecoin supply and real Treasury yields — all free and keyless. v1.7 expanded whale-trade tracking from the 6 Tier-I majors to all 23 coins, and fixed Live ETF Flows to honestly surface the real per-coin error (Farside is currently 403-blocking this server) instead of sitting silently empty. v1.7.1 fixed a crash in the Tech-Rating agent summary (it could pick a coin with no rating yet as "leader" and throw) that was silently killing every step after it on boot — which is why Intel & News, the Macro/Options poll, the economic calendar and the live auto-refresh could all go blank at once even though their data sources were healthy. v1.8 added Position Mode: a new weekly-candle 10-week/40-week EMA trend model, separate from the existing daily-candle Swing Mode in each coin's drawer, for genuinely holding across weeks and months with a trend-following exit instead of a fixed target. v1.9 added a Watchlist tab: a quick-add pair screener for one-off coins outside the main 23-coin roster, giving a simple buy/sell/hold read from live price action, funding and futures-vs-spot volume — shown nowhere else on the dashboard. Deliberately still out of scope: a working ETF auto-feed (needs a paid/keyed replacement for Farside — pending your provider choice), CoinGlass liquidation heatmaps, Glassnode / CryptoQuant on-chain netflows and Santiment/LunarCrush social data all require a paid API key, and a learned meta-model that reweights the agents needs months of journal data to train on first.</div>`;
+   `<div style="margin-top:14px;font-size:13px;line-height:1.6" class="dim">v1.6 added the signal journal (outcome tracking + the Model Lab scorecard), top-trader positioning, mark/index basis, whale CVD, exchange-wide forced liquidations, order-book imbalance, Deribit DVOL/put-call OI, Coinbase premium, stablecoin supply and real Treasury yields — all free and keyless. v1.7 expanded whale-trade tracking from the 6 Tier-I majors to all 23 coins, and fixed Live ETF Flows to honestly surface the real per-coin error (Farside is currently 403-blocking this server) instead of sitting silently empty. v1.7.1 fixed a crash in the Tech-Rating agent summary (it could pick a coin with no rating yet as "leader" and throw) that was silently killing every step after it on boot — which is why Intel & News, the Macro/Options poll, the economic calendar and the live auto-refresh could all go blank at once even though their data sources were healthy. v1.8 added Position Mode: a new weekly-candle 10-week/40-week EMA trend model, separate from the existing daily-candle Swing Mode in each coin's drawer, for genuinely holding across weeks and months with a trend-following exit instead of a fixed target. v1.9 added a Watchlist tab: a quick-add pair screener for one-off coins outside the main 23-coin roster, giving a simple buy/sell/hold read from live price action, funding and futures-vs-spot volume — shown nowhere else on the dashboard. v1.9.1 fixed a Watchlist bug where adding pairs in quick succession launched overlapping refresh loops that raced on the same rows — whichever one finished last won, so a pair that was loading fine could suddenly flash "not found on Binance USDⓈ-M futures" and back. Refreshes are now serialized (one pass at a time, queued if triggered again mid-pass), rate-limit responses (418/429) are no longer mislabeled as "not found," and a transient fetch error no longer wipes a previously-good signal off the row. Deliberately still out of scope: a working ETF auto-feed (needs a paid/keyed replacement for Farside — pending your provider choice), CoinGlass liquidation heatmaps, Glassnode / CryptoQuant on-chain netflows and Santiment/LunarCrush social data all require a paid API key, and a learned meta-model that reweights the agents needs months of journal data to train on first.</div>`;
 }
 
 /* ============================================================
@@ -1759,7 +1792,7 @@ async function liveCycle(full){
   try{await loadTickers();await loadKlines();if(full){await loadPositioning();}analyseAll();}catch(e){log('chief','Cycle error: '+e.message,'dn');}
 }
 async function boot(){
-  const lines=['> ZINERGE QUANT NEXUS v1.9','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
+  const lines=['> ZINERGE QUANT NEXUS v1.9.1','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
   const bl=$('#bootlog');for(const l of lines){bl.textContent+=l+'\n';await sleep(220);}
   initBg();buildCards();buildAgents();renderCapital();renderSources();wlInit();
   try{const h=await getJSON('/api/health',3000);S.hosted=!!(h&&h.ok);}catch(e){S.hosted=false;}
