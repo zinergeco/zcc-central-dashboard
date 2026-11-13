@@ -249,7 +249,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
 
 <div class="app">
 <header>
-  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.8</small></div>
+  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.9</small></div>
   <div class="hdr-mid">
     <button class="sect on" data-sect="crypto">◈ CRYPTO FUTURES</button>
     <button class="sect" data-sect="stocks">◇ GLOBAL STOCKS</button>
@@ -274,6 +274,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
   <button data-v="flow">⬡ FLOW INTEL</button>
   <button data-v="lab">⚙ MODEL LAB</button>
   <button data-v="position">◈ POSITION MODE</button>
+  <button data-v="watchlist">⊕ WATCHLIST</button>
 </nav>
 
 <section class="view on" id="v-command">
@@ -416,6 +417,18 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
     <div style="font-size:14px;line-height:1.65">The Position/Swing Mode lens inside each coin's drawer (daily candles, EMA21/50, 2.5× ATR stop, 2R/4R/7R targets) is built for a trade that resolves in days to about two weeks. Position Mode here is a separate model for genuinely holding through multiple macro cycles: weekly candles, a 10-week/40-week EMA regime instead of a crossover trigger, and no profit ladder at all — because inventing a bigger R-multiple off a wider stop is just the intraday model wearing a costume, not a real answer to "how long can this run." The honest answer for a multi-month hold is a trend-following exit, so that's what this tab gives.</div>
   </div>
 </section>
+
+<section class="view" id="v-watchlist">
+  <div class="panel">
+    <div class="ptitle">WATCHLIST · QUICK PAIR SCREENER <span class="r" id="wlMeta">—</span></div>
+    <div class="dim" style="font-size:13px;margin-bottom:10px">Add any Binance USDⓈ-M futures pair you're sizing up for a one-off trade — these stay completely separate from the main 23-coin roster and appear nowhere else on this dashboard. Each row gives a quick buy/sell/hold read from live price action, funding and positioning, so you don't have to jump tabs to decide.</div>
+    <div class="two" style="grid-template-columns:2fr 1fr;align-items:end">
+      <div><label>ADD PAIR</label><input id="wlInput" type="text" placeholder="e.g. BARDUSDT, or just BARD" style="text-transform:uppercase"></div>
+      <button class="btn" id="wlAddBtn" style="margin-top:0;height:36px">⟶ ADD</button>
+    </div>
+    <div id="wlTable" style="margin-top:14px"></div>
+  </div>
+</section>
 </div>
 
 <!-- ===================== STOCKS ===================== -->
@@ -429,7 +442,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
   </div>
 </div>
 
-<footer>ZCC Trading · Quant Nexus v1.8 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
+<footer>ZCC Trading · Quant Nexus v1.9 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
 </div>
 
 <div id="shade"></div>
@@ -494,7 +507,7 @@ const AGENTS=[
 const S={live:false,hosted:false,etfAuto:{},etfRaw:null,etfFund:'BTC',coins:{},fng:null,fngPrev:null,global:null,news:[],etf:{BTC:null,ETH:null,SOL:null,XRP:null},
   src:{},logs:[],cap:{bal:1000,riskPct:1,maxPos:4,dll:4,minConf:55},tf:'1h',openCoin:null,lastScore:0,
   flowCoin:'BTC',flowTf:'4h',whales:[],whaleMinUsd:50000,
-  liqs:[],liqCascade:{},intel:null,calendar:[],calendarAt:0,journalStats:null,journalPostedAt:0};
+  liqs:[],liqCascade:{},intel:null,calendar:[],calendarAt:0,journalStats:null,journalPostedAt:0,wl:[]};
 COINS.forEach(k=>S.coins[k.c]={...k,sym:null,dataSym:null,quote:'USDC',fallback:false,price:null,prev:null,chg:0,vol:0,funding:null,
   markPrice:null,indexPrice:null,basis:null,topLsr:null,obImbalance:null,cvd:0,
   k15:[],k1h:[],k4h:[],k12h:[],k1d:[],k1w:[],oi:[],lsr:null,taker:null,sig:null,techRating:null,predict:null});
@@ -1175,6 +1188,103 @@ function buildPositionPlan(co){
     fundingDailyPct,cost30:fundingDailyPct!=null?fundingDailyPct*30:null,cost90:fundingDailyPct!=null?fundingDailyPct*90:null};
 }
 
+/* ============================================================
+   WATCHLIST — quick-add pair screener, fully separate from the main
+   23-coin roster. The user adds any Binance USDⓈ-M futures pair they're
+   sizing up for a one-off trade; this gives a fast buy/sell/hold read
+   from live price action, funding and positioning so they don't have to
+   jump between tabs to decide. Deliberately its own small, honest
+   technical+positioning screener rather than forcing arbitrary small-cap
+   coins through the main 6-agent/tier-based engine (which assumes a
+   fixed leverage tier and capital-sizing model these ad-hoc pairs don't
+   have). Persisted to localStorage; never shown anywhere else on the
+   dashboard, per the user's explicit request. Only fetches while the
+   Watchlist tab is actually open, to stay gentle on Binance's rate limit. */
+const WL_QUOTES=['USDT','USDC','FDUSD','BUSD','BTC','ETH'];
+function wlSplit(sym){const q=WL_QUOTES.find(x=>sym.endsWith(x))||'USDT';return{base:sym.slice(0,sym.length-q.length),quote:q};}
+function wlMakeEntry(sym){const{base,quote}=wlSplit(sym);return{sym,base,quote,price:null,chg:null,funding:null,oi:[],futVol24h:null,spotVol24h:null,k1h:[],loaded:false,err:null,an:null};}
+function wlLoadStored(){try{const a=JSON.parse(localStorage.getItem('qn_wl')||'null');if(Array.isArray(a)&&a.length)return a;}catch(e){}return['BARDUSDT','AKEUSDT','ARIAUSDT','SOPHUSDT'];}
+function wlSave(){try{localStorage.setItem('qn_wl',JSON.stringify(S.wl.map(w=>w.sym)));}catch(e){}}
+function wlInit(){S.wl=wlLoadStored().map(wlMakeEntry);}
+function watchTabActive(){const el=$('#v-watchlist');return!!(el&&el.classList.contains('on'));}
+function addWatchPair(raw){
+  let s=(raw||'').toUpperCase().replace(/[^A-Z0-9]/g,'');if(!s)return;
+  if(!WL_QUOTES.some(q=>s.endsWith(q)))s+='USDT';
+  if(S.wl.find(w=>w.sym===s)){renderWatchlist();return;}
+  S.wl.push(wlMakeEntry(s));wlSave();renderWatchlist();loadWatchlist();
+}
+function removeWatch(sym){S.wl=S.wl.filter(w=>w.sym!==sym);wlSave();renderWatchlist();}
+/* Simple, transparent verdict — no invented signals, just the numbers
+   shown right next to it. Mirrors exactly what matters when deciding
+   whether to chase a coin that's already up big: is the move backed by
+   real (spot) demand or mostly leveraged futures positioning, and is
+   funding/OI stretched enough that a reversal is the more likely next
+   move? Any one of those "squeeze" conditions forces HOLD regardless of
+   how strong the move looks — chasing a confirmed squeeze is exactly
+   the mistake this screener exists to flag. */
+function analyseWatch(w){
+  if(w.price==null||!w.k1h||w.k1h.length<22)return null;
+  const cl=w.k1h.map(b=>b.c);const e21=ema(cl,21).at(-1);
+  const trendUp=w.price>e21*1.001,trendDn=w.price<e21*0.999;
+  const oiCh=(w.oi&&w.oi.length>5&&w.oi[0])?(w.oi.at(-1)-w.oi[0])/w.oi[0]*100:null;
+  const fundingDailyPct=w.funding!=null?w.funding*3:null;
+  const volRatio=(w.futVol24h!=null&&w.spotVol24h)?w.futVol24h/w.spotVol24h:null;
+  const reasons=[];let squeeze=false;
+  if(w.chg!=null)reasons.push(`${w.chg>0?'+':''}${w.chg.toFixed(1)}% in 24h`);
+  if(volRatio!=null){reasons.push(`futures volume ${volRatio.toFixed(1)}× spot`);if(volRatio>5){squeeze=true;reasons.push('mostly leveraged positioning, not real spot demand');}}
+  if(fundingDailyPct!=null){reasons.push(`funding ${fundingDailyPct>0?'+':''}${fundingDailyPct.toFixed(2)}%/day`);if(Math.abs(fundingDailyPct)>1.5){squeeze=true;reasons.push(fundingDailyPct>0?'longs crowded and paying to stay in':'shorts crowded — this move may be a short squeeze');}}
+  if(oiCh!=null){reasons.push(`OI ${oiCh>0?'+':''}${oiCh.toFixed(0)}% in ~24h`);if(Math.abs(oiCh)>40)reasons.push(oiCh>0?'a lot of new leveraged money just arrived':'positions unwinding fast');}
+  let verdict;
+  if(squeeze)verdict='HOLD';
+  else if(trendUp&&w.chg>3)verdict='LONG';
+  else if(trendDn&&w.chg<-3)verdict='SHORT';
+  else verdict='HOLD';
+  return{verdict,squeeze,oiCh,fundingDailyPct,volRatio,reasons};
+}
+async function loadWatchlist(){
+  if(!S.wl.length)return;let ok=0,err=0;
+  for(const w of S.wl){
+    try{
+      const [tk,pi,oiRaw,sp,kl]=await Promise.all([
+        getJSON(`${FAPI}/fapi/v1/ticker/24hr?symbol=${w.sym}`),
+        getJSON(`${FAPI}/fapi/v1/premiumIndex?symbol=${w.sym}`),
+        getJSON(`${FAPI}/futures/data/openInterestHist?symbol=${w.sym}&period=1h&limit=25`).catch(()=>[]),
+        getJSON(`https://api.binance.com/api/v3/ticker/24hr?symbol=${w.sym}`).catch(()=>null),
+        getJSON(`${FAPI}/fapi/v1/klines?symbol=${w.sym}&interval=1h&limit=50`)]);
+      w.price=+tk.lastPrice;w.chg=+tk.priceChangePercent;w.futVol24h=+tk.quoteVolume;
+      w.funding=pi.lastFundingRate!=null?+pi.lastFundingRate*100:null;
+      w.oi=Array.isArray(oiRaw)?oiRaw.map(x=>+x.sumOpenInterestValue):[];
+      w.spotVol24h=sp?+sp.quoteVolume:null;
+      w.k1h=mapK(kl);w.err=null;w.an=analyseWatch(w);ok++;
+    }catch(e){w.err=/HTTP 4\d\d/.test(e.message)?'not found on Binance USDⓈ-M futures':e.message;w.an=null;err++;}
+    w.loaded=true;
+    if(!watchTabActive())return; // user navigated away mid-loop — stop hammering Binance for a tab nobody's looking at
+    await sleep(100);
+  }
+  setSrc('wl',ok?'ok':err?'err':'wait',ok+'/'+S.wl.length+' pairs · refreshes while this tab is open');
+  if(watchTabActive())renderWatchlist();
+}
+function renderWatchlist(){
+  const meta=$('#wlMeta'),tbl=$('#wlTable');if(!meta||!tbl)return;
+  if(!S.wl.length){meta.textContent='—';tbl.innerHTML='<div class="dim">No pairs added yet — type a symbol above (e.g. BARDUSDT, or just BARD) and click Add.</div>';return;}
+  meta.textContent='updated '+ts()+' · '+S.wl.length+' pair'+(S.wl.length===1?'':'s');
+  tbl.innerHTML='<table><tr><th></th><th>PAIR</th><th>PRICE</th><th>24H</th><th>SIGNAL</th><th>ANALYSIS</th></tr>'+
+    S.wl.map(w=>{
+      const a=w.an;const v=a?a.verdict:null;
+      const label=v==='LONG'?'▲ BUY':v==='SHORT'?'▼ SELL':'◆ HOLD';
+      const chgCls=w.chg==null?'dim':w.chg>=0?'up':'dn';
+      const analysisText=w.err?`<span class="dn">${w.err}</span>`:a&&a.reasons.length?a.reasons.join(' · '):(w.loaded?'No strong signal either way — insufficient edge to call it.':'Loading…');
+      return`<tr><td><button class="wlx" data-sym="${w.sym}" title="Remove from watchlist" style="background:none;border:1px solid var(--line2);color:var(--dim);cursor:pointer;font-family:var(--mono);padding:2px 7px">×</button></td>
+       <td><b>${w.base}</b><span class="dim mono" style="font-size:10px">/${w.quote}</span></td>
+       <td class="mono">${fmtP(w.price)}</td>
+       <td class="mono ${chgCls}">${w.chg!=null?pct(w.chg,1):'—'}</td>
+       <td><span class="badge ${v||'HOLD'}" style="margin-left:0">${label}</span></td>
+       <td style="font-size:12.5px;line-height:1.5">${analysisText}</td></tr>`;
+    }).join('')+'</table>'+
+    '<div class="dim" style="font-size:12px;margin-top:10px">Price action and positioning only — 24h move, trend vs the 1h EMA21, funding rate, open-interest change and futures-vs-spot volume. It has no idea about token unlock schedules, project news or protocol-level risk (a chain shutting down, a freeze vote, etc.) — check those yourself before sizing anything, especially on thin, recently-pumped coins like these.</div>';
+  tbl.querySelectorAll('.wlx').forEach(b=>b.onclick=()=>removeWatch(b.dataset.sym));
+}
+
 /* NEWS SCORING */
 const POS=['surge','soar','rally','bull','approv','inflow','record high','all-time high','ath','gain','jump','breakout','adopt','partnership','launch','upgrade','accumulat','buy','etf filing','listing','integrat','rebound','recover'];
 const NEG=['plunge','crash','bear','hack','exploit','outflow','lawsuit','sue','ban','drop','fall','slump','liquidat','sell-off','selloff','fraud','delay','reject','dump','drain','stolen','investigation','probe','warning','decline','tumble','sink','fear'];
@@ -1557,12 +1667,13 @@ const SOURCES=[
  ['journal','Signal Journal','/api/journal → Supabase (service role, server-side only)','Every signal logged, then outcome-checked ~24h later against real candles — feeds the Model Lab scorecard','15 min'],
  ['intel','Macro &amp; Options Intel','Coinbase · Deribit · DefiLlama · Frankfurter FX · US Treasury (via /api/intel)','DVOL, put/call OI, stablecoin supply, USD strength and 10Y/2Y yields — Macro &amp; Flow Analyst, small capped weights','5 min'],
  ['calendar','Economic Calendar','ForexFactory weekly high-impact events (via /api/calendar, best-effort)','Caps confidence dashboard-wide inside a ±2h window around high-impact releases','2 h'],
- ['journalStats','Model Lab Scorecard','/api/journal/stats (aggregated server-side from the journal)','Per-agent directional accuracy, win rate and Brier calibration — Model Lab tab','5 min']];
+ ['journalStats','Model Lab Scorecard','/api/journal/stats (aggregated server-side from the journal)','Per-agent directional accuracy, win rate and Brier calibration — Model Lab tab','5 min'],
+ ['wl','Watchlist Quick-Screen','/fapi/v1/ticker/24hr · /premiumIndex · /openInterestHist · 1h klines (per pair) + Binance Spot /api/v3/ticker/24hr','User-added pairs on the Watchlist tab: price, funding, OI change, futures-vs-spot volume ratio and a simple buy/sell/hold read','45 s · only while that tab is open']];
 function renderSources(){
   if(!S.hosted)setSrc('etf',(S.etf.BTC!=null&&S.etf.BTC!=='')?'ok':'wait',(S.etf.BTC!=null&&S.etf.BTC!=='')?'manual values injected':'enter in Intel tab');
   $('#srcTable').innerHTML='<table><tr><th>SOURCE</th><th>ENDPOINT</th><th>FEEDS</th><th>REFRESH</th><th>STATUS</th><th>LAST</th></tr>'+SOURCES.map(([id,n,e,f,r])=>{const s=S.src[id]||{status:'wait'};const cls={ok:'ok',wait:'wait',blk:'blk',err:'err'}[s.status]||'wait';const lbl={ok:'LIVE',wait:'PENDING',blk:'SANDBOXED',err:'ERROR'}[s.status]||'PENDING';
     return`<tr><td style="font-weight:600">${n}</td><td class="mono cy">${e}</td><td style="font-size:13px">${f}${s.note?`<br><span class="dim" style="font-size:11px">${s.note}</span>`:''}</td><td class="mono">${r}</td><td><span class="st ${cls}">${lbl}</span></td><td class="mono dim">${s.at||'—'}</td></tr>`;}).join('')+'</table>'+
-   `<div style="margin-top:14px;font-size:13px;line-height:1.6" class="dim">v1.6 added the signal journal (outcome tracking + the Model Lab scorecard), top-trader positioning, mark/index basis, whale CVD, exchange-wide forced liquidations, order-book imbalance, Deribit DVOL/put-call OI, Coinbase premium, stablecoin supply and real Treasury yields — all free and keyless. v1.7 expanded whale-trade tracking from the 6 Tier-I majors to all 23 coins, and fixed Live ETF Flows to honestly surface the real per-coin error (Farside is currently 403-blocking this server) instead of sitting silently empty. v1.7.1 fixed a crash in the Tech-Rating agent summary (it could pick a coin with no rating yet as "leader" and throw) that was silently killing every step after it on boot — which is why Intel & News, the Macro/Options poll, the economic calendar and the live auto-refresh could all go blank at once even though their data sources were healthy. v1.8 added Position Mode: a new weekly-candle 10-week/40-week EMA trend model, separate from the existing daily-candle Swing Mode in each coin's drawer, for genuinely holding across weeks and months with a trend-following exit instead of a fixed target. Deliberately still out of scope: a working ETF auto-feed (needs a paid/keyed replacement for Farside — pending your provider choice), CoinGlass liquidation heatmaps, Glassnode / CryptoQuant on-chain netflows and Santiment/LunarCrush social data all require a paid API key, and a learned meta-model that reweights the agents needs months of journal data to train on first.</div>`;
+   `<div style="margin-top:14px;font-size:13px;line-height:1.6" class="dim">v1.6 added the signal journal (outcome tracking + the Model Lab scorecard), top-trader positioning, mark/index basis, whale CVD, exchange-wide forced liquidations, order-book imbalance, Deribit DVOL/put-call OI, Coinbase premium, stablecoin supply and real Treasury yields — all free and keyless. v1.7 expanded whale-trade tracking from the 6 Tier-I majors to all 23 coins, and fixed Live ETF Flows to honestly surface the real per-coin error (Farside is currently 403-blocking this server) instead of sitting silently empty. v1.7.1 fixed a crash in the Tech-Rating agent summary (it could pick a coin with no rating yet as "leader" and throw) that was silently killing every step after it on boot — which is why Intel & News, the Macro/Options poll, the economic calendar and the live auto-refresh could all go blank at once even though their data sources were healthy. v1.8 added Position Mode: a new weekly-candle 10-week/40-week EMA trend model, separate from the existing daily-candle Swing Mode in each coin's drawer, for genuinely holding across weeks and months with a trend-following exit instead of a fixed target. v1.9 added a Watchlist tab: a quick-add pair screener for one-off coins outside the main 23-coin roster, giving a simple buy/sell/hold read from live price action, funding and futures-vs-spot volume — shown nowhere else on the dashboard. Deliberately still out of scope: a working ETF auto-feed (needs a paid/keyed replacement for Farside — pending your provider choice), CoinGlass liquidation heatmaps, Glassnode / CryptoQuant on-chain netflows and Santiment/LunarCrush social data all require a paid API key, and a learned meta-model that reweights the agents needs months of journal data to train on first.</div>`;
 }
 
 /* ============================================================
@@ -1648,9 +1759,9 @@ async function liveCycle(full){
   try{await loadTickers();await loadKlines();if(full){await loadPositioning();}analyseAll();}catch(e){log('chief','Cycle error: '+e.message,'dn');}
 }
 async function boot(){
-  const lines=['> ZINERGE QUANT NEXUS v1.8','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
+  const lines=['> ZINERGE QUANT NEXUS v1.9','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
   const bl=$('#bootlog');for(const l of lines){bl.textContent+=l+'\n';await sleep(220);}
-  initBg();buildCards();buildAgents();renderCapital();renderSources();
+  initBg();buildCards();buildAgents();renderCapital();renderSources();wlInit();
   try{const h=await getJSON('/api/health',3000);S.hosted=!!(h&&h.ok);}catch(e){S.hosted=false;}
   loadStocks();setInterval(loadStocks,3*60e3);
   S.live=await detectLive();
@@ -1680,7 +1791,7 @@ async function boot(){
     try{loadOrderBook();}catch(e){log('chief','Order book error: '+e.message,'dn');}
     loadIntel().then(analyseAll);loadCalendar();loadJournalStats();
     postJournal();
-    let n=0;setInterval(()=>{n++;liveCycle(n%5===0);},60e3);setInterval(()=>{loadMacro();loadNews();},S.hosted?120e3:300e3);setInterval(loadEtf,30*60e3);setInterval(loadWhaleTrades,20e3);setInterval(loadOrderBook,25e3);setInterval(postJournal,15*60e3);setInterval(loadWeeklyKlines,4*60*60e3);
+    let n=0;setInterval(()=>{n++;liveCycle(n%5===0);},60e3);setInterval(()=>{loadMacro();loadNews();},S.hosted?120e3:300e3);setInterval(loadEtf,30*60e3);setInterval(loadWhaleTrades,20e3);setInterval(loadOrderBook,25e3);setInterval(postJournal,15*60e3);setInterval(loadWeeklyKlines,4*60*60e3);setInterval(()=>{if(watchTabActive())loadWatchlist();},45e3);
     setInterval(()=>loadIntel().then(analyseAll),5*60e3);setInterval(loadCalendar,2*60*60e3);setInterval(loadJournalStats,5*60e3);
   }else{
     md.className='mode sim';$('#modeTxt').textContent='SIMULATION';$('#simbar').style.display='block';
@@ -1693,15 +1804,17 @@ async function boot(){
 
 /* UI wiring */
 setInterval(()=>{$('#clock').textContent=new Date().toLocaleTimeString('en-GB')+' '+(Intl.DateTimeFormat().resolvedOptions().timeZone.split('/').pop()||'');},1000);
-const VIEWS=['command','agents','intel','capital','sources','flow','lab','position'];
+const VIEWS=['command','agents','intel','capital','sources','flow','lab','position','watchlist'];
 function show(v){if(!VIEWS.includes(v))v='command';document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('on',x.id==='v-'+v));
-  if(v==='command')setTimeout(()=>COINS.forEach(k=>drawSpark(S.coins[k.c])),30);if(v==='sources')renderSources();if(v==='capital')renderCapital();if(v==='flow')renderFlowIntel();if(v==='intel')renderIntelPanel();if(v==='lab'&&typeof renderModelLab==='function')renderModelLab();if(v==='position'&&typeof renderPositionMode==='function')renderPositionMode();try{if(location.hash.slice(1)!==v)history.replaceState(null,'','#'+v);}catch(e){}}
+  if(v==='command')setTimeout(()=>COINS.forEach(k=>drawSpark(S.coins[k.c])),30);if(v==='sources')renderSources();if(v==='capital')renderCapital();if(v==='flow')renderFlowIntel();if(v==='intel')renderIntelPanel();if(v==='lab'&&typeof renderModelLab==='function')renderModelLab();if(v==='position'&&typeof renderPositionMode==='function')renderPositionMode();if(v==='watchlist'&&typeof renderWatchlist==='function'){renderWatchlist();if(typeof loadWatchlist==='function')loadWatchlist();}try{if(location.hash.slice(1)!==v)history.replaceState(null,'','#'+v);}catch(e){}}
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>show(b.dataset.v));
 addEventListener('hashchange',()=>show(location.hash.slice(1)));
 document.querySelectorAll('.sect').forEach(b=>b.onclick=()=>{document.querySelectorAll('.sect').forEach(x=>x.classList.toggle('on',x===b));$('#sect-crypto').style.display=b.dataset.sect==='crypto'?'':'none';$('#sect-stocks').style.display=b.dataset.sect==='stocks'?'':'none';if(b.dataset.sect==='stocks')renderStocks();});
 $('#etfSave').onclick=()=>{S.etf={BTC:$('#etfBtc').value,ETH:$('#etfEth').value,SOL:$('#etfSol').value,XRP:$('#etfXrp').value};try{localStorage.setItem('qn_etf',JSON.stringify(S.etf));}catch(e){}log('macro',`ETF flows injected: BTC ${S.etf.BTC||'—'}M · ETH ${S.etf.ETH||'—'}M. Re-scoring.`,'cy');analyseAll();};
 $('#capSave').onclick=()=>{S.cap={bal:+$('#bal').value||0,riskPct:+$('#riskPct').value||1,maxPos:+$('#maxPos').value||4,dll:+$('#dll').value||4,minConf:+$('#minConf').value||55};try{localStorage.setItem('qn_cap',JSON.stringify(S.cap));}catch(e){}log('fin','Capital parameters updated. Position sizes recalculated.','cy');analyseAll();};
 ['bal','riskPct','maxPos','dll','minConf'].forEach(id=>$('#'+id).value=S.cap[id]);
+$('#wlAddBtn').onclick=()=>{addWatchPair($('#wlInput').value);$('#wlInput').value='';};
+$('#wlInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#wlAddBtn').click();}});
 show(location.hash.slice(1)||'command');
 boot();
 </script>
