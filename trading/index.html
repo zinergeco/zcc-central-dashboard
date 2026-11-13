@@ -249,7 +249,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
 
 <div class="app">
 <header>
-  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.9.1</small></div>
+  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.9.2</small></div>
   <div class="hdr-mid">
     <button class="sect on" data-sect="crypto">◈ CRYPTO FUTURES</button>
     <button class="sect" data-sect="stocks">◇ GLOBAL STOCKS</button>
@@ -275,6 +275,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
   <button data-v="lab">⚙ MODEL LAB</button>
   <button data-v="position">◈ POSITION MODE</button>
   <button data-v="watchlist">⊕ WATCHLIST</button>
+  <button data-v="settings">⟲ SETTINGS</button>
 </nav>
 
 <section class="view on" id="v-command">
@@ -429,6 +430,19 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
     <div id="wlTable" style="margin-top:14px"></div>
   </div>
 </section>
+
+<section class="view" id="v-settings">
+  <div class="panel">
+    <div class="ptitle">LIVE DATA ENGINE <span class="r" id="engStatusTxt">—</span></div>
+    <div class="dim" style="font-size:13px;margin-bottom:14px">Pauses the main 23-coin roster's continuous Binance polling — ticker/kline cycles, macro, news, ETF flows, whale trades, order book, open interest, the journal and both live WebSocket streams — to save your request budget when you're stepping away. Your last known prices and signals stay on screen, frozen, until you press Start again. This choice is remembered the next time you open the dashboard.</div>
+    <div id="engBody"></div>
+  </div>
+  <div class="panel" style="margin-top:14px">
+    <div class="ptitle">WATCHLIST REFRESH <span class="r" id="wlEngStatusTxt">—</span></div>
+    <div class="dim" style="font-size:13px;margin-bottom:14px">Independent of the engine above — pauses only the Watchlist tab's own 45-second refresh. You can still add or remove pairs while paused; they just won't fetch new data until you press Start. Also remembered across reloads.</div>
+    <div id="wlEngBody"></div>
+  </div>
+</section>
 </div>
 
 <!-- ===================== STOCKS ===================== -->
@@ -442,7 +456,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
   </div>
 </div>
 
-<footer>ZCC Trading · Quant Nexus v1.9.1 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
+<footer>ZCC Trading · Quant Nexus v1.9.2 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
 </div>
 
 <div id="shade"></div>
@@ -507,11 +521,23 @@ const AGENTS=[
 const S={live:false,hosted:false,etfAuto:{},etfRaw:null,etfFund:'BTC',coins:{},fng:null,fngPrev:null,global:null,news:[],etf:{BTC:null,ETH:null,SOL:null,XRP:null},
   src:{},logs:[],cap:{bal:1000,riskPct:1,maxPos:4,dll:4,minConf:55},tf:'1h',openCoin:null,lastScore:0,
   flowCoin:'BTC',flowTf:'4h',whales:[],whaleMinUsd:50000,
-  liqs:[],liqCascade:{},intel:null,calendar:[],calendarAt:0,journalStats:null,journalPostedAt:0,wl:[]};
+  liqs:[],liqCascade:{},intel:null,calendar:[],calendarAt:0,journalStats:null,journalPostedAt:0,wl:[],
+  running:true,wlRunning:true};
 COINS.forEach(k=>S.coins[k.c]={...k,sym:null,dataSym:null,quote:'USDC',fallback:false,price:null,prev:null,chg:0,vol:0,funding:null,
   markPrice:null,indexPrice:null,basis:null,topLsr:null,obImbalance:null,cvd:0,
   k15:[],k1h:[],k4h:[],k12h:[],k1d:[],k1w:[],oi:[],lsr:null,taker:null,sig:null,techRating:null,predict:null});
-try{const c=JSON.parse(localStorage.getItem('qn_cap')||'null');if(c)Object.assign(S.cap,c);const e=JSON.parse(localStorage.getItem('qn_etf')||'null');if(e)Object.assign(S.etf,e);}catch(e){}
+try{const c=JSON.parse(localStorage.getItem('qn_cap')||'null');if(c)Object.assign(S.cap,c);const e=JSON.parse(localStorage.getItem('qn_etf')||'null');if(e)Object.assign(S.etf,e);
+  const r=localStorage.getItem('qn_running');if(r!=null)S.running=r==='1';
+  const wr=localStorage.getItem('qn_wlRunning');if(wr!=null)S.wlRunning=wr==='1';
+}catch(e){}
+// mainIntervals holds every interval id the live data engine owns, so Stop can
+// clear exactly those (and only those — the Watchlist's own interval is
+// independent and is never pushed here). wsManualClose tells the two
+// WebSockets' onclose handlers that this was a deliberate Stop, not a dropped
+// connection, so they don't auto-reconnect behind the user's back.
+let mainIntervals=[],wsManualClose=false;
+function saveRunning(){try{localStorage.setItem('qn_running',S.running?'1':'0');}catch(e){}}
+function saveWlRunning(){try{localStorage.setItem('qn_wlRunning',S.wlRunning?'1':'0');}catch(e){}}
 
 /* ============================================================
    UTIL
@@ -821,7 +847,7 @@ function openLiqWS(){
     arr.forEach(x=>{const o=x.o;if(!o)return;const c=symbolToCoin(o.s);if(!c)return;
       noteLiquidation({c,side:o.S,price:+o.p,qty:+o.q,notional:(+o.ap||+o.p)*(+o.q),t:x.E||Date.now()});});
   }catch(e){}};
-  liqWs.onclose=()=>{setSrc('liq','err','reconnecting');setTimeout(openLiqWS,5000);};
+  liqWs.onclose=()=>{if(wsManualClose){setSrc('liq','wait','paused — resume from Settings');return;}setSrc('liq','err','reconnecting');setTimeout(openLiqWS,5000);};
   liqWs.onerror=()=>{};
 }
 function renderWhaleTable(){
@@ -948,7 +974,7 @@ function openWS(){
     co.prev=co.price;co.price=+d.c;co.chg=+d.P;co.vol=+d.q;
     const b=co.k15.at(-1);if(b){if(Date.now()-b.t>15*60e3){co.k15.push({t:b.t+15*60e3,o:co.price,h:co.price,l:co.price,c:co.price,v:0});co.k15.shift();}else{b.c=co.price;b.h=Math.max(b.h,co.price);b.l=Math.min(b.l,co.price);}}
     tickCard(co);};
-  ws.onclose=()=>{setSrc('ws','err','reconnecting');setTimeout(openWS,4000);};
+  ws.onclose=()=>{if(wsManualClose){setSrc('ws','wait','paused — resume from Settings');return;}setSrc('ws','err','reconnecting');setTimeout(openWS,4000);};
   ws.onerror=()=>{};
 }
 
@@ -1243,6 +1269,9 @@ function analyseWatch(w){
 }
 let wlBusy=false,wlPending=false;
 async function loadWatchlist(){
+  // Independent Start/Stop: paused here never touches the main 23-coin engine's
+  // own running state, and vice versa.
+  if(!S.wlRunning)return;
   // Re-entrancy guard: loadWatchlist() is triggered from three independent places
   // (tab-open, addWatchPair(), and the 45s interval) and each call loops over the
   // WHOLE S.wl array. Without this guard, adding pairs quickly launched overlapping
@@ -1292,8 +1321,8 @@ async function loadWatchlist(){
 }
 function renderWatchlist(){
   const meta=$('#wlMeta'),tbl=$('#wlTable');if(!meta||!tbl)return;
-  if(!S.wl.length){meta.textContent='—';tbl.innerHTML='<div class="dim">No pairs added yet — type a symbol above (e.g. BARDUSDT, or just BARD) and click Add.</div>';return;}
-  meta.textContent='updated '+ts()+' · '+S.wl.length+' pair'+(S.wl.length===1?'':'s');
+  if(!S.wl.length){meta.textContent=S.wlRunning?'—':'⏸ paused';tbl.innerHTML='<div class="dim">No pairs added yet — type a symbol above (e.g. BARDUSDT, or just BARD) and click Add.</div>';return;}
+  meta.textContent=S.wlRunning?('updated '+ts()+' · '+S.wl.length+' pair'+(S.wl.length===1?'':'s')):('⏸ paused · '+S.wl.length+' pair'+(S.wl.length===1?'':'s')+' · frozen — resume from Settings');
   tbl.innerHTML='<table><tr><th></th><th>PAIR</th><th>PRICE</th><th>24H</th><th>SIGNAL</th><th>ANALYSIS</th></tr>'+
     S.wl.map(w=>{
       const a=w.an;const v=a?a.verdict:null;
@@ -1304,8 +1333,9 @@ function renderWatchlist(){
       // analysis with a small subdued note, so a transient/rate-limited refresh never
       // blanks out a signal that was working moments ago.
       const analysisText=a&&a.reasons.length
-        ?a.reasons.join(' · ')+(w.err?` <span class="dim">· last refresh: ${w.err}</span>`:'')
+        ?a.reasons.join(' · ')+(w.err?` <span class="dim">· last refresh: ${w.err}</span>`:'')+(!S.wlRunning?' <span class="dim">· paused</span>':'')
         :w.err?`<span class="dn">${w.err}</span>`
+        :!S.wlRunning?'<span class="dim">Paused — press Start on the Settings tab to fetch.</span>'
         :(w.loaded?'No strong signal either way — insufficient edge to call it.':'Loading…');
       return`<tr><td><button class="wlx" data-sym="${w.sym}" title="Remove from watchlist" style="background:none;border:1px solid var(--line2);color:var(--dim);cursor:pointer;font-family:var(--mono);padding:2px 7px">×</button></td>
        <td><b>${w.base}</b><span class="dim mono" style="font-size:10px">/${w.quote}</span></td>
@@ -1706,7 +1736,7 @@ function renderSources(){
   if(!S.hosted)setSrc('etf',(S.etf.BTC!=null&&S.etf.BTC!=='')?'ok':'wait',(S.etf.BTC!=null&&S.etf.BTC!=='')?'manual values injected':'enter in Intel tab');
   $('#srcTable').innerHTML='<table><tr><th>SOURCE</th><th>ENDPOINT</th><th>FEEDS</th><th>REFRESH</th><th>STATUS</th><th>LAST</th></tr>'+SOURCES.map(([id,n,e,f,r])=>{const s=S.src[id]||{status:'wait'};const cls={ok:'ok',wait:'wait',blk:'blk',err:'err'}[s.status]||'wait';const lbl={ok:'LIVE',wait:'PENDING',blk:'SANDBOXED',err:'ERROR'}[s.status]||'PENDING';
     return`<tr><td style="font-weight:600">${n}</td><td class="mono cy">${e}</td><td style="font-size:13px">${f}${s.note?`<br><span class="dim" style="font-size:11px">${s.note}</span>`:''}</td><td class="mono">${r}</td><td><span class="st ${cls}">${lbl}</span></td><td class="mono dim">${s.at||'—'}</td></tr>`;}).join('')+'</table>'+
-   `<div style="margin-top:14px;font-size:13px;line-height:1.6" class="dim">v1.6 added the signal journal (outcome tracking + the Model Lab scorecard), top-trader positioning, mark/index basis, whale CVD, exchange-wide forced liquidations, order-book imbalance, Deribit DVOL/put-call OI, Coinbase premium, stablecoin supply and real Treasury yields — all free and keyless. v1.7 expanded whale-trade tracking from the 6 Tier-I majors to all 23 coins, and fixed Live ETF Flows to honestly surface the real per-coin error (Farside is currently 403-blocking this server) instead of sitting silently empty. v1.7.1 fixed a crash in the Tech-Rating agent summary (it could pick a coin with no rating yet as "leader" and throw) that was silently killing every step after it on boot — which is why Intel & News, the Macro/Options poll, the economic calendar and the live auto-refresh could all go blank at once even though their data sources were healthy. v1.8 added Position Mode: a new weekly-candle 10-week/40-week EMA trend model, separate from the existing daily-candle Swing Mode in each coin's drawer, for genuinely holding across weeks and months with a trend-following exit instead of a fixed target. v1.9 added a Watchlist tab: a quick-add pair screener for one-off coins outside the main 23-coin roster, giving a simple buy/sell/hold read from live price action, funding and futures-vs-spot volume — shown nowhere else on the dashboard. v1.9.1 fixed a Watchlist bug where adding pairs in quick succession launched overlapping refresh loops that raced on the same rows — whichever one finished last won, so a pair that was loading fine could suddenly flash "not found on Binance USDⓈ-M futures" and back. Refreshes are now serialized (one pass at a time, queued if triggered again mid-pass), rate-limit responses (418/429) are no longer mislabeled as "not found," and a transient fetch error no longer wipes a previously-good signal off the row. Deliberately still out of scope: a working ETF auto-feed (needs a paid/keyed replacement for Farside — pending your provider choice), CoinGlass liquidation heatmaps, Glassnode / CryptoQuant on-chain netflows and Santiment/LunarCrush social data all require a paid API key, and a learned meta-model that reweights the agents needs months of journal data to train on first.</div>`;
+   `<div style="margin-top:14px;font-size:13px;line-height:1.6" class="dim">v1.6 added the signal journal (outcome tracking + the Model Lab scorecard), top-trader positioning, mark/index basis, whale CVD, exchange-wide forced liquidations, order-book imbalance, Deribit DVOL/put-call OI, Coinbase premium, stablecoin supply and real Treasury yields — all free and keyless. v1.7 expanded whale-trade tracking from the 6 Tier-I majors to all 23 coins, and fixed Live ETF Flows to honestly surface the real per-coin error (Farside is currently 403-blocking this server) instead of sitting silently empty. v1.7.1 fixed a crash in the Tech-Rating agent summary (it could pick a coin with no rating yet as "leader" and throw) that was silently killing every step after it on boot — which is why Intel & News, the Macro/Options poll, the economic calendar and the live auto-refresh could all go blank at once even though their data sources were healthy. v1.8 added Position Mode: a new weekly-candle 10-week/40-week EMA trend model, separate from the existing daily-candle Swing Mode in each coin's drawer, for genuinely holding across weeks and months with a trend-following exit instead of a fixed target. v1.9 added a Watchlist tab: a quick-add pair screener for one-off coins outside the main 23-coin roster, giving a simple buy/sell/hold read from live price action, funding and futures-vs-spot volume — shown nowhere else on the dashboard. v1.9.1 fixed a Watchlist bug where adding pairs in quick succession launched overlapping refresh loops that raced on the same rows — whichever one finished last won, so a pair that was loading fine could suddenly flash "not found on Binance USDⓈ-M futures" and back. Refreshes are now serialized (one pass at a time, queued if triggered again mid-pass), rate-limit responses (418/429) are no longer mislabeled as "not found," and a transient fetch error no longer wipes a previously-good signal off the row. v1.9.2 added a Settings tab with two independent Start/Stop switches — one for the main 23-coin live data engine (ticker/kline cycles, macro, news, ETF flows, whale trades, order book, the journal and both WebSocket streams), one for the Watchlist's own 45s refresh — so you can pause either one to save your Binance request budget when stepping away, without losing what's on screen: everything freezes on its last known values and resumes exactly where it left off. Both choices are remembered across reloads. Deliberately still out of scope: a working ETF auto-feed (needs a paid/keyed replacement for Farside — pending your provider choice), CoinGlass liquidation heatmaps, Glassnode / CryptoQuant on-chain netflows and Santiment/LunarCrush social data all require a paid API key, and a learned meta-model that reweights the agents needs months of journal data to train on first.</div>`;
 }
 
 /* ============================================================
@@ -1791,8 +1821,65 @@ function chatter(){
 async function liveCycle(full){
   try{await loadTickers();await loadKlines();if(full){await loadPositioning();}analyseAll();}catch(e){log('chief','Cycle error: '+e.message,'dn');}
 }
+
+// LIVE DATA ENGINE — startEngine()/stopEngine() own everything the main
+// 23-coin roster fetches from Binance: the initial resolve-and-load cascade,
+// both WebSocket streams, and every recurring interval. Pulled out of boot()
+// so the exact same sequence can also be triggered on demand from the
+// Settings tab's Start button, without a full page reload. stopEngine()
+// clears only the intervals pushed into mainIntervals — the Watchlist's own
+// 45s interval is set up separately in boot() and is never touched here,
+// keeping the two Start/Stop switches genuinely independent.
+async function startEngine(){
+  if(S.running&&mainIntervals.length)return; // already running — nothing to do
+  S.running=true;saveRunning();wsManualClose=false;
+  const md=$('#mode');if(md){md.className='mode live';md.style.color='';md.style.borderColor='';}
+  const mt=$('#modeTxt');if(mt)mt.textContent='LIVE · BINANCE';
+  $('#simbar').style.display='none';
+  log('chief','Live uplink confirmed. Resolving contracts…','up');
+  try{await resolveSymbols();}catch(e){log('chief','exchangeInfo failed: '+e.message,'dn');}
+  await Promise.all([loadMacro(),loadTickers()]);COINS.forEach(k=>tickCard(S.coins[k.c]));
+  await loadEtf();await loadKlines();await loadPositioning();
+  try{await loadWeeklyKlines();}catch(e){log('chief','Weekly klines error: '+e.message,'dn');}
+  // Each step below is independently guarded: a bug in any one render/poll
+  // path (like the techRating leader crash this fixed) must never again be
+  // able to take down every later step in this chain — news, websockets,
+  // whale trades and the order book all have to start regardless.
+  try{analyseAll();}catch(e){log('chief','Render cycle error: '+e.message,'dn');}
+  loadNews().then(analyseAll).catch(e=>log('chief','News load error: '+e.message,'dn'));
+  try{openWS();}catch(e){log('chief','Ticker WS error: '+e.message,'dn');}
+  try{openLiqWS();}catch(e){log('chief','Liquidation WS error: '+e.message,'dn');}
+  try{loadWhaleTrades();}catch(e){log('chief','Whale trades error: '+e.message,'dn');}
+  try{loadOrderBook();}catch(e){log('chief','Order book error: '+e.message,'dn');}
+  loadIntel().then(analyseAll);loadCalendar();loadJournalStats();
+  postJournal();
+  let n=0;
+  mainIntervals.push(setInterval(()=>{n++;liveCycle(n%5===0);},60e3));
+  mainIntervals.push(setInterval(()=>{loadMacro();loadNews();},S.hosted?120e3:300e3));
+  mainIntervals.push(setInterval(loadEtf,30*60e3));
+  mainIntervals.push(setInterval(loadWhaleTrades,20e3));
+  mainIntervals.push(setInterval(loadOrderBook,25e3));
+  mainIntervals.push(setInterval(postJournal,15*60e3));
+  mainIntervals.push(setInterval(loadWeeklyKlines,4*60*60e3));
+  mainIntervals.push(setInterval(()=>loadIntel().then(analyseAll),5*60e3));
+  mainIntervals.push(setInterval(loadCalendar,2*60*60e3));
+  mainIntervals.push(setInterval(loadJournalStats,5*60e3));
+  if(typeof renderSettings==='function')renderSettings();
+}
+function stopEngine(){
+  if(!S.running&&!mainIntervals.length)return; // already stopped
+  S.running=false;saveRunning();
+  mainIntervals.forEach(clearInterval);mainIntervals=[];
+  wsManualClose=true;
+  try{if(ws&&ws.readyState<2)ws.close();}catch(e){}
+  try{if(liqWs&&liqWs.readyState<2)liqWs.close();}catch(e){}
+  const md=$('#mode');if(md){md.className='mode sim';md.style.color='';md.style.borderColor='';}
+  const mt=$('#modeTxt');if(mt)mt.textContent='PAUSED';
+  log('chief','Live data engine paused — frozen on last values until resumed from Settings.','am');
+  if(typeof renderSettings==='function')renderSettings();
+}
 async function boot(){
-  const lines=['> ZINERGE QUANT NEXUS v1.9.1','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
+  const lines=['> ZINERGE QUANT NEXUS v1.9.2','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
   const bl=$('#bootlog');for(const l of lines){bl.textContent+=l+'\n';await sleep(220);}
   initBg();buildCards();buildAgents();renderCapital();renderSources();wlInit();
   try{const h=await getJSON('/api/health',3000);S.hosted=!!(h&&h.ok);}catch(e){S.hosted=false;}
@@ -1807,25 +1894,17 @@ async function boot(){
     log('chief','Binance unreachable from this browser (network, VPN or region block, e.g. HTTP 451 for US IPs). Not simulating: retrying every 15 s.','dn');
     loadMacro().then(renderRegime);loadNews();
     const iv=setInterval(async()=>{if(await detectLive()){clearInterval(iv);location.reload();}},15000);setInterval(chatter,3500);return;}
-  if(S.live){md.className='mode live';$('#modeTxt').textContent='LIVE · BINANCE';$('#simbar').style.display='none';log('chief','Live uplink confirmed. Resolving contracts…','up');
-    try{await resolveSymbols();}catch(e){log('chief','exchangeInfo failed: '+e.message,'dn');}
-    await Promise.all([loadMacro(),loadTickers()]);COINS.forEach(k=>tickCard(S.coins[k.c]));
-    await loadEtf();await loadKlines();await loadPositioning();
-    try{await loadWeeklyKlines();}catch(e){log('chief','Weekly klines error: '+e.message,'dn');}
-    // Each step below is independently guarded: a bug in any one render/poll
-    // path (like the techRating leader crash this fixed) must never again be
-    // able to take down every later step in this chain — news, websockets,
-    // whale trades and the order book all have to start regardless.
-    try{analyseAll();}catch(e){log('chief','Render cycle error: '+e.message,'dn');}
-    loadNews().then(analyseAll).catch(e=>log('chief','News load error: '+e.message,'dn'));
-    try{openWS();}catch(e){log('chief','Ticker WS error: '+e.message,'dn');}
-    try{openLiqWS();}catch(e){log('chief','Liquidation WS error: '+e.message,'dn');}
-    try{loadWhaleTrades();}catch(e){log('chief','Whale trades error: '+e.message,'dn');}
-    try{loadOrderBook();}catch(e){log('chief','Order book error: '+e.message,'dn');}
-    loadIntel().then(analyseAll);loadCalendar();loadJournalStats();
-    postJournal();
-    let n=0;setInterval(()=>{n++;liveCycle(n%5===0);},60e3);setInterval(()=>{loadMacro();loadNews();},S.hosted?120e3:300e3);setInterval(loadEtf,30*60e3);setInterval(loadWhaleTrades,20e3);setInterval(loadOrderBook,25e3);setInterval(postJournal,15*60e3);setInterval(loadWeeklyKlines,4*60*60e3);setInterval(()=>{if(watchTabActive())loadWatchlist();},45e3);
-    setInterval(()=>loadIntel().then(analyseAll),5*60e3);setInterval(loadCalendar,2*60*60e3);setInterval(loadJournalStats,5*60e3);
+  if(S.live){
+    // The Watchlist's own refresh timer is independent of the main engine's
+    // Start/Stop — it always ticks; loadWatchlist() itself checks S.wlRunning
+    // and no-ops when the user has paused just that section.
+    setInterval(()=>{if(watchTabActive())loadWatchlist();},45e3);
+    if(S.running){await startEngine();}
+    else{
+      md.className='mode sim';md.style.color='';md.style.borderColor='';$('#modeTxt').textContent='PAUSED';$('#simbar').style.display='none';
+      log('chief','Live data engine starts paused (remembered from your last session). Resume anytime from Settings — the Watchlist tab is unaffected and keeps its own separate Start/Stop.','am');
+      if(typeof renderSettings==='function')renderSettings();
+    }
   }else{
     md.className='mode sim';$('#modeTxt').textContent='SIMULATION';$('#simbar').style.display='block';
     log('chief','Outside network blocked by the host sandbox. Running the engine on a simulated feed.','am');
@@ -1837,9 +1916,42 @@ async function boot(){
 
 /* UI wiring */
 setInterval(()=>{$('#clock').textContent=new Date().toLocaleTimeString('en-GB')+' '+(Intl.DateTimeFormat().resolvedOptions().timeZone.split('/').pop()||'');},1000);
-const VIEWS=['command','agents','intel','capital','sources','flow','lab','position','watchlist'];
+const VIEWS=['command','agents','intel','capital','sources','flow','lab','position','watchlist','settings'];
 function show(v){if(!VIEWS.includes(v))v='command';document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('on',x.id==='v-'+v));
-  if(v==='command')setTimeout(()=>COINS.forEach(k=>drawSpark(S.coins[k.c])),30);if(v==='sources')renderSources();if(v==='capital')renderCapital();if(v==='flow')renderFlowIntel();if(v==='intel')renderIntelPanel();if(v==='lab'&&typeof renderModelLab==='function')renderModelLab();if(v==='position'&&typeof renderPositionMode==='function')renderPositionMode();if(v==='watchlist'&&typeof renderWatchlist==='function'){renderWatchlist();if(typeof loadWatchlist==='function')loadWatchlist();}try{if(location.hash.slice(1)!==v)history.replaceState(null,'','#'+v);}catch(e){}}
+  if(v==='command')setTimeout(()=>COINS.forEach(k=>drawSpark(S.coins[k.c])),30);if(v==='sources')renderSources();if(v==='capital')renderCapital();if(v==='flow')renderFlowIntel();if(v==='intel')renderIntelPanel();if(v==='lab'&&typeof renderModelLab==='function')renderModelLab();if(v==='position'&&typeof renderPositionMode==='function')renderPositionMode();if(v==='watchlist'&&typeof renderWatchlist==='function'){renderWatchlist();if(typeof loadWatchlist==='function')loadWatchlist();}if(v==='settings'&&typeof renderSettings==='function')renderSettings();try{if(location.hash.slice(1)!==v)history.replaceState(null,'','#'+v);}catch(e){}}
+
+// SETTINGS — two independent Start/Stop switches: the main 23-coin live data
+// engine (startEngine()/stopEngine()) and the Watchlist's own refresh
+// (toggleWlRunning()). Neither button exists until this renders, so boot()
+// and startEngine()/stopEngine() only call it defensively (typeof-checked).
+function toggleWlRunning(){
+  S.wlRunning=!S.wlRunning;saveWlRunning();
+  log('chief','Watchlist refresh '+(S.wlRunning?'resumed':'paused')+' — '+(S.wlRunning?'fetching again on its own 45s cycle.':'frozen on last values until resumed.'),'cy');
+  if(S.wlRunning)loadWatchlist();
+  if(watchTabActive())renderWatchlist();
+  renderSettings();
+}
+function renderSettings(){
+  const eb=$('#engBody'),wb=$('#wlEngBody'),et=$('#engStatusTxt'),wt=$('#wlEngStatusTxt');
+  if(!eb||!wb)return;
+  if(!S.live){
+    et.textContent='n/a — simulation mode';et.className='r dim';
+    eb.innerHTML='<div class="dim">This browser can\'t reach Binance right now, so the dashboard is running on a simulated feed — there\'s no real API usage to pause here. This switch only matters once a genuine Binance uplink is live.</div>';
+  }else{
+    et.textContent=S.running?'● RUNNING':'⏸ PAUSED';et.className='r '+(S.running?'up':'dn');
+    eb.innerHTML=`<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <span class="st ${S.running?'ok':'wait'}">${S.running?'LIVE · streaming':'PAUSED · frozen on last values'}</span>
+      <button class="btn" id="engToggleBtn" style="margin-top:0">${S.running?'⏻ STOP ENGINE':'▶ START ENGINE'}</button>
+    </div>`;
+    $('#engToggleBtn').onclick=()=>{if(S.running)stopEngine();else startEngine();};
+  }
+  wt.textContent=S.wlRunning?'● RUNNING':'⏸ PAUSED';wt.className='r '+(S.wlRunning?'up':'dn');
+  wb.innerHTML=`<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <span class="st ${S.wlRunning?'ok':'wait'}">${S.wlRunning?'LIVE · refreshing every 45s while that tab is open':'PAUSED · frozen on last values'}</span>
+    <button class="btn" id="wlToggleBtn" style="margin-top:0">${S.wlRunning?'⏻ STOP WATCHLIST':'▶ START WATCHLIST'}</button>
+  </div>`;
+  $('#wlToggleBtn').onclick=toggleWlRunning;
+}
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>show(b.dataset.v));
 addEventListener('hashchange',()=>show(location.hash.slice(1)));
 document.querySelectorAll('.sect').forEach(b=>b.onclick=()=>{document.querySelectorAll('.sect').forEach(x=>x.classList.toggle('on',x===b));$('#sect-crypto').style.display=b.dataset.sect==='crypto'?'':'none';$('#sect-stocks').style.display=b.dataset.sect==='stocks'?'':'none';if(b.dataset.sect==='stocks')renderStocks();});
