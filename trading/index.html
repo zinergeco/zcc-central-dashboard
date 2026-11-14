@@ -126,7 +126,9 @@ nav.tabs button.on::after{content:"";position:absolute;left:50%;bottom:-6px;widt
 .badge.LONG{color:var(--green);border-color:var(--green);background:rgba(0,255,156,.08);text-shadow:0 0 8px var(--green)}
 .badge.SHORT{color:var(--red);border-color:var(--red);background:rgba(255,56,96,.08);text-shadow:0 0 8px var(--red)}
 .badge.HOLD{color:var(--amber);border-color:var(--amber);background:rgba(255,176,0,.07)}
-.badge.LONG,.badge.SHORT{animation:glowb 2s ease-in-out infinite}
+.badge.STRONGLONG{color:#00140c;border-color:var(--green);background:var(--green);text-shadow:none;font-weight:900;box-shadow:0 0 18px var(--green)}
+.badge.STRONGSHORT{color:#1a0306;border-color:var(--red);background:var(--red);text-shadow:none;font-weight:900;box-shadow:0 0 18px var(--red)}
+.badge.LONG,.badge.SHORT,.badge.STRONGLONG,.badge.STRONGSHORT{animation:glowb 2s ease-in-out infinite}
 @keyframes glowb{50%{box-shadow:0 0 16px currentColor}}
 .c-price{display:flex;align-items:baseline;gap:10px;margin:10px 0 4px}
 .c-price .p{font-family:var(--mono);font-size:22px;transition:color .3s}
@@ -249,7 +251,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
 
 <div class="app">
 <header>
-  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.9.2</small></div>
+  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.9.3</small></div>
   <div class="hdr-mid">
     <button class="sect on" data-sect="crypto">◈ CRYPTO FUTURES</button>
     <button class="sect" data-sect="stocks">◇ GLOBAL STOCKS</button>
@@ -422,12 +424,17 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
 <section class="view" id="v-watchlist">
   <div class="panel">
     <div class="ptitle">WATCHLIST · QUICK PAIR SCREENER <span class="r" id="wlMeta">—</span></div>
-    <div class="dim" style="font-size:13px;margin-bottom:10px">Add any Binance USDⓈ-M futures pair you're sizing up for a one-off trade — these stay completely separate from the main 23-coin roster and appear nowhere else on this dashboard. Each row gives a quick buy/sell/hold read from live price action, funding and positioning, so you don't have to jump tabs to decide.</div>
+    <div class="dim" style="font-size:13px;margin-bottom:10px">Add any Binance USDⓈ-M futures pair you're sizing up for a one-off trade — these stay completely separate from the main 23-coin roster and appear nowhere else on this dashboard. Each row gives a buy/sell/hold read — with a STRONG variant when several signals line up — plus a second line of the raw RSI/MACD/ATR/range/volume/OI stats behind it, so you don't have to jump tabs or take the verdict on faith.</div>
     <div class="two" style="grid-template-columns:2fr 1fr;align-items:end">
       <div><label>ADD PAIR</label><input id="wlInput" type="text" placeholder="e.g. BARDUSDT, or just BARD" style="text-transform:uppercase"></div>
       <button class="btn" id="wlAddBtn" style="margin-top:0;height:36px">⟶ ADD</button>
     </div>
     <div id="wlTable" style="margin-top:14px"></div>
+  </div>
+  <div class="panel" style="margin-top:14px">
+    <div class="ptitle">POTENTIAL BREAKOUTS · NOT YET ON YOUR WATCHLIST <span class="r" id="brkMeta">—</span></div>
+    <div class="dim" style="font-size:13px;margin-bottom:10px">Scanned from every Binance USDⓈ-M perpetual outside the main 23-coin roster and your own watchlist above — real 24h move, real liquidity (quote volume ≥ $3m) and where price is actually closing in its own day's range, with the same crowded-funding filter the watchlist above uses to avoid flagging a coin that's already squeezed. This is a liquidity-and-momentum screen, not full technical analysis — press + WATCH on anything interesting to pull its deeper read into the table above before you trade it.</div>
+    <div id="brkTable"></div>
   </div>
 </section>
 
@@ -456,7 +463,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
   </div>
 </div>
 
-<footer>ZCC Trading · Quant Nexus v1.9.2 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
+<footer>ZCC Trading · Quant Nexus v1.9.3 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
 </div>
 
 <div id="shade"></div>
@@ -522,6 +529,7 @@ const S={live:false,hosted:false,etfAuto:{},etfRaw:null,etfFund:'BTC',coins:{},f
   src:{},logs:[],cap:{bal:1000,riskPct:1,maxPos:4,dll:4,minConf:55},tf:'1h',openCoin:null,lastScore:0,
   flowCoin:'BTC',flowTf:'4h',whales:[],whaleMinUsd:50000,
   liqs:[],liqCascade:{},intel:null,calendar:[],calendarAt:0,journalStats:null,journalPostedAt:0,wl:[],
+  brk:{buy:[],sell:[],at:null},
   running:true,wlRunning:true};
 COINS.forEach(k=>S.coins[k.c]={...k,sym:null,dataSym:null,quote:'USDC',fallback:false,price:null,prev:null,chg:0,vol:0,funding:null,
   markPrice:null,indexPrice:null,basis:null,topLsr:null,obImbalance:null,cvd:0,
@@ -1247,25 +1255,66 @@ function removeWatch(sym){S.wl=S.wl.filter(w=>w.sym!==sym);wlSave();renderWatchl
    funding/OI stretched enough that a reversal is the more likely next
    move? Any one of those "squeeze" conditions forces HOLD regardless of
    how strong the move looks — chasing a confirmed squeeze is exactly
-   the mistake this screener exists to flag. */
+   the mistake this screener exists to flag.
+   v1.9.3 adds a second layer on top of that same safety rule: when NOT
+   squeezed, every already-fetched number (RSI, MACD histogram, the
+   9/21/50 EMA stack, where price sits in its own ~50h range, and whether
+   1h volume is building or fading) is checked for agreement, and a
+   STRONG verdict is only given when most of them agree with the base
+   trend — all computed from data this row already fetched, so it costs
+   zero extra Binance requests. */
 function analyseWatch(w){
   if(w.price==null||!w.k1h||w.k1h.length<22)return null;
-  const cl=w.k1h.map(b=>b.c);const e21=ema(cl,21).at(-1);
+  const cl=w.k1h.map(b=>b.c);
+  const e9=ema(cl,9).at(-1),e21=ema(cl,21).at(-1),e50=cl.length>=50?ema(cl,50).at(-1):null;
   const trendUp=w.price>e21*1.001,trendDn=w.price<e21*0.999;
+  const rsiV=rsi(cl).at(-1);
+  const mSeries=macd(cl);const mH=mSeries.at(-1),mHp=mSeries.at(-2);
+  const atrV=atr(w.k1h).at(-1);const atrPct=(atrV!=null&&w.price)?atrV/w.price*100:null;
+  const highs=w.k1h.map(b=>b.h),lows=w.k1h.map(b=>b.l);
+  const rangeHi=Math.max(...highs),rangeLo=Math.min(...lows);
+  const rangePos=(rangeHi>rangeLo)?clamp((w.price-rangeLo)/(rangeHi-rangeLo),0,1):null;
+  const vols=w.k1h.map(b=>b.v);const volRecent=vols.slice(-3).reduce((a,b)=>a+b,0)/Math.min(3,vols.length);
+  const priorSlice=vols.slice(0,-3);const volPrior=priorSlice.length?priorSlice.reduce((a,b)=>a+b,0)/priorSlice.length:null;
+  const volBuilding=(volPrior!=null&&volPrior>0)?volRecent>volPrior*1.25:null;
   const oiCh=(w.oi&&w.oi.length>5&&w.oi[0])?(w.oi.at(-1)-w.oi[0])/w.oi[0]*100:null;
   const fundingDailyPct=w.funding!=null?w.funding*3:null;
   const volRatio=(w.futVol24h!=null&&w.spotVol24h)?w.futVol24h/w.spotVol24h:null;
+
   const reasons=[];let squeeze=false;
   if(w.chg!=null)reasons.push(`${w.chg>0?'+':''}${w.chg.toFixed(1)}% in 24h`);
   if(volRatio!=null){reasons.push(`futures volume ${volRatio.toFixed(1)}× spot`);if(volRatio>5){squeeze=true;reasons.push('mostly leveraged positioning, not real spot demand');}}
   if(fundingDailyPct!=null){reasons.push(`funding ${fundingDailyPct>0?'+':''}${fundingDailyPct.toFixed(2)}%/day`);if(Math.abs(fundingDailyPct)>1.5){squeeze=true;reasons.push(fundingDailyPct>0?'longs crowded and paying to stay in':'shorts crowded — this move may be a short squeeze');}}
   if(oiCh!=null){reasons.push(`OI ${oiCh>0?'+':''}${oiCh.toFixed(0)}% in ~24h`);if(Math.abs(oiCh)>40)reasons.push(oiCh>0?'a lot of new leveraged money just arrived':'positions unwinding fast');}
+
+  // Confluence check — only decides STRONG vs plain, never overrides the
+  // squeeze/trend/move gate below, so this never makes a weak signal look
+  // tradeable; it only flags when a signal that already cleared the gate
+  // is unusually well-corroborated.
+  let agree=0,checked=0;
+  if(rsiV!=null){checked++;if(rsiV>=55)agree++;else if(rsiV<=45)agree--;}
+  if(mH!=null&&mHp!=null){checked++;if(mH>0&&mH>=mHp)agree++;else if(mH<0&&mH<=mHp)agree--;}
+  if(e50!=null){checked++;if(e9>e21&&e21>e50)agree++;else if(e9<e21&&e21<e50)agree--;}
+  if(rangePos!=null){checked++;if(rangePos>=0.7)agree++;else if(rangePos<=0.3)agree--;}
+  if(volBuilding!=null&&w.chg!=null){checked++;if(volBuilding)agree+=w.chg>0?1:-1;}
+  const net=checked?agree/checked:0;
+
+  const stats=[];
+  stats.push(`RSI(1h) ${rsiV!=null?rsiV.toFixed(0):'—'}`);
+  stats.push(`MACD ${mH!=null?(mH>=0?'+':'')+mH.toFixed(5):'—'}`);
+  stats.push(`ATR(1h) ${atrPct!=null?atrPct.toFixed(2)+'%':'—'}`);
+  if(rangePos!=null)stats.push(`${(rangePos*100).toFixed(0)}% of its ~50h range`);
+  if(volBuilding!=null)stats.push('1h volume '+(volBuilding?'building':'fading'));
+  if(w.oi&&w.oi.length)stats.push('OI '+fmtBig(w.oi.at(-1)));
+  if(w.futVol24h!=null)stats.push('fut vol '+fmtBig(w.futVol24h));
+  if(w.spotVol24h!=null)stats.push('spot vol '+fmtBig(w.spotVol24h));
+
   let verdict;
   if(squeeze)verdict='HOLD';
-  else if(trendUp&&w.chg>3)verdict='LONG';
-  else if(trendDn&&w.chg<-3)verdict='SHORT';
+  else if(trendUp&&w.chg>3)verdict=net>=0.5?'STRONG LONG':'LONG';
+  else if(trendDn&&w.chg<-3)verdict=net<=-0.5?'STRONG SHORT':'SHORT';
   else verdict='HOLD';
-  return{verdict,squeeze,oiCh,fundingDailyPct,volRatio,reasons};
+  return{verdict,squeeze,oiCh,fundingDailyPct,volRatio,reasons,stats,net};
 }
 let wlBusy=false,wlPending=false;
 async function loadWatchlist(){
@@ -1326,26 +1375,98 @@ function renderWatchlist(){
   tbl.innerHTML='<table><tr><th></th><th>PAIR</th><th>PRICE</th><th>24H</th><th>SIGNAL</th><th>ANALYSIS</th></tr>'+
     S.wl.map(w=>{
       const a=w.an;const v=a?a.verdict:null;
-      const label=v==='LONG'?'▲ BUY':v==='SHORT'?'▼ SELL':'◆ HOLD';
+      // A verdict with a space ('STRONG LONG') can't be a CSS class as-is —
+      // map it to a space-free class while keeping the full text for the label.
+      const vClass=v==='STRONG LONG'?'STRONGLONG':v==='STRONG SHORT'?'STRONGSHORT':(v||'HOLD');
+      const label=v==='STRONG LONG'?'▲▲ STRONG BUY':v==='LONG'?'▲ BUY':v==='STRONG SHORT'?'▼▼ STRONG SELL':v==='SHORT'?'▼ SELL':'◆ HOLD';
       const chgCls=w.chg==null?'dim':w.chg>=0?'up':'dn';
       // A current w.err only gets the hard red treatment if we've NEVER had a good
       // read for this pair (a is null) — otherwise we keep showing the last good
       // analysis with a small subdued note, so a transient/rate-limited refresh never
       // blanks out a signal that was working moments ago.
-      const analysisText=a&&a.reasons.length
+      const line1=a&&a.reasons.length
         ?a.reasons.join(' · ')+(w.err?` <span class="dim">· last refresh: ${w.err}</span>`:'')+(!S.wlRunning?' <span class="dim">· paused</span>':'')
         :w.err?`<span class="dn">${w.err}</span>`
         :!S.wlRunning?'<span class="dim">Paused — press Start on the Settings tab to fetch.</span>'
         :(w.loaded?'No strong signal either way — insufficient edge to call it.':'Loading…');
+      // Second line: every already-fetched stat behind the verdict above — RSI,
+      // MACD, ATR%, where price sits in its own ~50h range, 1h volume trend, OI
+      // and both volume figures — so the call never has to be taken on faith.
+      const line2=(a&&a.stats&&a.stats.length)?`<div class="dim" style="font-size:11px;margin-top:3px">${a.stats.join(' · ')}</div>`:'';
       return`<tr><td><button class="wlx" data-sym="${w.sym}" title="Remove from watchlist" style="background:none;border:1px solid var(--line2);color:var(--dim);cursor:pointer;font-family:var(--mono);padding:2px 7px">×</button></td>
        <td><b>${w.base}</b><span class="dim mono" style="font-size:10px">/${w.quote}</span></td>
        <td class="mono">${fmtP(w.price)}</td>
        <td class="mono ${chgCls}">${w.chg!=null?pct(w.chg,1):'—'}</td>
-       <td><span class="badge ${v||'HOLD'}" style="margin-left:0">${label}</span></td>
-       <td style="font-size:12.5px;line-height:1.5">${analysisText}</td></tr>`;
+       <td><span class="badge ${vClass}" style="margin-left:0">${label}</span></td>
+       <td style="font-size:12.5px;line-height:1.5">${line1}${line2}</td></tr>`;
     }).join('')+'</table>'+
-    '<div class="dim" style="font-size:12px;margin-top:10px">Price action and positioning only — 24h move, trend vs the 1h EMA21, funding rate, open-interest change and futures-vs-spot volume. It has no idea about token unlock schedules, project news or protocol-level risk (a chain shutting down, a freeze vote, etc.) — check those yourself before sizing anything, especially on thin, recently-pumped coins like these.</div>';
+    '<div class="dim" style="font-size:12px;margin-top:10px">Price action and positioning only — 24h move, the 9/21/50 EMA stack, RSI, MACD, ATR, where price sits in its own ~50h range, 1h volume trend, funding rate, open-interest change and futures-vs-spot volume. STRONG only shows when most of those agree with the base trend — it still has no idea about token unlock schedules, project news or protocol-level risk (a chain shutting down, a freeze vote, etc.), so check those yourself before sizing anything, especially on thin, recently-pumped coins like these.</div>';
   tbl.querySelectorAll('.wlx').forEach(b=>b.onclick=()=>removeWatch(b.dataset.sym));
+}
+
+/* POTENTIAL BREAKOUTS — liquidity + momentum scan of every USDⓈ-M perpetual
+   NOT already on the main roster or the watchlist above. Uses the bulk
+   (no-symbol) ticker/24hr and premiumIndex endpoints, so this is exactly
+   2 extra Binance requests regardless of how many contracts exist — never
+   one request per candidate symbol. */
+const BRK_MIN_QUOTE_VOL=3e6,BRK_MIN_MOVE=6,BRK_MAX_FUNDING_DAILY=2;
+function brkTrackedSymbols(){
+  const s=new Set(S.wl.map(w=>w.sym));
+  COINS.forEach(k=>{const co=S.coins[k.c];if(co.sym)s.add(co.sym);if(co.dataSym)s.add(co.dataSym);});
+  return s;
+}
+let brkBusy=false;
+async function loadBreakouts(){
+  if(!S.wlRunning)return;
+  if(brkBusy)return;brkBusy=true;
+  try{
+    const [tickers,premiums]=await Promise.all([
+      getJSON(`${FAPI}/fapi/v1/ticker/24hr`),
+      getJSON(`${FAPI}/fapi/v1/premiumIndex`)]);
+    const fundingBySym={};(premiums||[]).forEach(p=>{if(p.lastFundingRate!=null)fundingBySym[p.symbol]=+p.lastFundingRate*3;});
+    const tracked=brkTrackedSymbols();
+    const candidates=(tickers||[]).filter(t=>
+      !t.symbol.includes('_')&&
+      !tracked.has(t.symbol)&&
+      (t.symbol.endsWith('USDT')||t.symbol.endsWith('USDC'))&&
+      +t.quoteVolume>=BRK_MIN_QUOTE_VOL);
+    const scored=candidates.map(t=>{
+      const price=+t.lastPrice,chg=+t.priceChangePercent,hi=+t.highPrice,lo=+t.lowPrice,vol=+t.quoteVolume;
+      const rangePos=(hi>lo)?clamp((price-lo)/(hi-lo),0,1):null;
+      const fundingDaily=fundingBySym[t.symbol]!=null?fundingBySym[t.symbol]:null;
+      return{sym:t.symbol,price,chg,vol,rangePos,fundingDaily};
+    });
+    const buy=scored.filter(s=>s.chg>=BRK_MIN_MOVE&&s.rangePos!=null&&s.rangePos>=0.6&&(s.fundingDaily==null||s.fundingDaily<=BRK_MAX_FUNDING_DAILY))
+      .sort((a,b)=>b.chg-a.chg).slice(0,6);
+    const sell=scored.filter(s=>s.chg<=-BRK_MIN_MOVE&&s.rangePos!=null&&s.rangePos<=0.4&&(s.fundingDaily==null||s.fundingDaily>=-BRK_MAX_FUNDING_DAILY))
+      .sort((a,b)=>a.chg-b.chg).slice(0,6);
+    S.brk={buy,sell,at:ts()};
+    setSrc('brk','ok',buy.length+' buy / '+sell.length+' sell candidates');
+    if(watchTabActive())renderBreakouts();
+  }catch(e){setSrc('brk','err',e.message);}
+  finally{brkBusy=false;}
+}
+function renderBreakouts(){
+  const meta=$('#brkMeta'),tbl=$('#brkTable');if(!meta||!tbl)return;
+  if(!S.wlRunning){meta.textContent='⏸ paused';tbl.innerHTML='<div class="dim">Paused — press Start on the Settings tab to resume scanning.</div>';return;}
+  if(!S.brk||(!S.brk.buy.length&&!S.brk.sell.length)){meta.textContent=S.brk&&S.brk.at?'updated '+S.brk.at:'—';tbl.innerHTML='<div class="dim">Scanning the full Binance USDⓈ-M futures board for liquid, fast-moving pairs not already on your radar…</div>';return;}
+  meta.textContent='updated '+(S.brk.at||ts());
+  const row=(s,side)=>{
+    const{base,quote}=wlSplit(s.sym);
+    const label=side==='buy'?'▲ BUY':'▼ SELL';
+    const fundTxt=s.fundingDaily!=null?`funding ${s.fundingDaily>0?'+':''}${s.fundingDaily.toFixed(2)}%/day`:'funding —';
+    const rangeTxt=s.rangePos!=null?`${(s.rangePos*100).toFixed(0)}% of today's range`:'';
+    return`<tr><td><b>${base}</b><span class="dim mono" style="font-size:10px">/${quote}</span></td>
+     <td class="mono">${fmtP(s.price)}</td>
+     <td class="mono ${s.chg>=0?'up':'dn'}">${pct(s.chg,1)}</td>
+     <td class="mono dim" style="font-size:11px">${fmtBig(s.vol)} · ${fundTxt}${rangeTxt?' · '+rangeTxt:''}</td>
+     <td><span class="badge ${side==='buy'?'LONG':'SHORT'}" style="margin-left:0">${label}</span></td>
+     <td><button class="wlwatch" data-sym="${s.sym}" style="background:none;border:1px solid var(--cyan);color:var(--cyan);cursor:pointer;font-family:var(--mono);font-size:11px;padding:3px 9px">+ WATCH</button></td></tr>`;
+  };
+  tbl.innerHTML='<table><tr><th>PAIR</th><th>PRICE</th><th>24H</th><th>LIQUIDITY / FUNDING</th><th></th><th></th></tr>'+
+    S.brk.buy.map(s=>row(s,'buy')).join('')+S.brk.sell.map(s=>row(s,'sell')).join('')+
+    '</table>'+(!S.brk.buy.length?'<div class="dim" style="font-size:12px;margin-top:8px">No buy candidates clear the liquidity/momentum/funding filters right now.</div>':'')+(!S.brk.sell.length?'<div class="dim" style="font-size:12px;margin-top:4px">No sell candidates clear the liquidity/momentum/funding filters right now.</div>':'');
+  tbl.querySelectorAll('.wlwatch').forEach(b=>b.onclick=()=>{addWatchPair(b.dataset.sym);loadBreakouts();});
 }
 
 /* NEWS SCORING */
@@ -1731,12 +1852,13 @@ const SOURCES=[
  ['intel','Macro &amp; Options Intel','Coinbase · Deribit · DefiLlama · Frankfurter FX · US Treasury (via /api/intel)','DVOL, put/call OI, stablecoin supply, USD strength and 10Y/2Y yields — Macro &amp; Flow Analyst, small capped weights','5 min'],
  ['calendar','Economic Calendar','ForexFactory weekly high-impact events (via /api/calendar, best-effort)','Caps confidence dashboard-wide inside a ±2h window around high-impact releases','2 h'],
  ['journalStats','Model Lab Scorecard','/api/journal/stats (aggregated server-side from the journal)','Per-agent directional accuracy, win rate and Brier calibration — Model Lab tab','5 min'],
- ['wl','Watchlist Quick-Screen','/fapi/v1/ticker/24hr · /premiumIndex · /openInterestHist · 1h klines (per pair) + Binance Spot /api/v3/ticker/24hr','User-added pairs on the Watchlist tab: price, funding, OI change, futures-vs-spot volume ratio and a simple buy/sell/hold read','45 s · only while that tab is open']];
+ ['wl','Watchlist Quick-Screen','/fapi/v1/ticker/24hr · /premiumIndex · /openInterestHist · 1h klines (per pair) + Binance Spot /api/v3/ticker/24hr','User-added pairs on the Watchlist tab: price, funding, OI change, futures-vs-spot volume ratio and a simple buy/sell/hold read','45 s · only while that tab is open'],
+ ['brk','Breakout Scanner','/fapi/v1/ticker/24hr · /premiumIndex (bulk, all symbols)','Liquidity + momentum + funding-sanity scan of every USDⓈ-M perpetual not already tracked, for the Potential Breakouts panel on the Watchlist tab','45 s · only while that tab is open']];
 function renderSources(){
   if(!S.hosted)setSrc('etf',(S.etf.BTC!=null&&S.etf.BTC!=='')?'ok':'wait',(S.etf.BTC!=null&&S.etf.BTC!=='')?'manual values injected':'enter in Intel tab');
   $('#srcTable').innerHTML='<table><tr><th>SOURCE</th><th>ENDPOINT</th><th>FEEDS</th><th>REFRESH</th><th>STATUS</th><th>LAST</th></tr>'+SOURCES.map(([id,n,e,f,r])=>{const s=S.src[id]||{status:'wait'};const cls={ok:'ok',wait:'wait',blk:'blk',err:'err'}[s.status]||'wait';const lbl={ok:'LIVE',wait:'PENDING',blk:'SANDBOXED',err:'ERROR'}[s.status]||'PENDING';
     return`<tr><td style="font-weight:600">${n}</td><td class="mono cy">${e}</td><td style="font-size:13px">${f}${s.note?`<br><span class="dim" style="font-size:11px">${s.note}</span>`:''}</td><td class="mono">${r}</td><td><span class="st ${cls}">${lbl}</span></td><td class="mono dim">${s.at||'—'}</td></tr>`;}).join('')+'</table>'+
-   `<div style="margin-top:14px;font-size:13px;line-height:1.6" class="dim">v1.6 added the signal journal (outcome tracking + the Model Lab scorecard), top-trader positioning, mark/index basis, whale CVD, exchange-wide forced liquidations, order-book imbalance, Deribit DVOL/put-call OI, Coinbase premium, stablecoin supply and real Treasury yields — all free and keyless. v1.7 expanded whale-trade tracking from the 6 Tier-I majors to all 23 coins, and fixed Live ETF Flows to honestly surface the real per-coin error (Farside is currently 403-blocking this server) instead of sitting silently empty. v1.7.1 fixed a crash in the Tech-Rating agent summary (it could pick a coin with no rating yet as "leader" and throw) that was silently killing every step after it on boot — which is why Intel & News, the Macro/Options poll, the economic calendar and the live auto-refresh could all go blank at once even though their data sources were healthy. v1.8 added Position Mode: a new weekly-candle 10-week/40-week EMA trend model, separate from the existing daily-candle Swing Mode in each coin's drawer, for genuinely holding across weeks and months with a trend-following exit instead of a fixed target. v1.9 added a Watchlist tab: a quick-add pair screener for one-off coins outside the main 23-coin roster, giving a simple buy/sell/hold read from live price action, funding and futures-vs-spot volume — shown nowhere else on the dashboard. v1.9.1 fixed a Watchlist bug where adding pairs in quick succession launched overlapping refresh loops that raced on the same rows — whichever one finished last won, so a pair that was loading fine could suddenly flash "not found on Binance USDⓈ-M futures" and back. Refreshes are now serialized (one pass at a time, queued if triggered again mid-pass), rate-limit responses (418/429) are no longer mislabeled as "not found," and a transient fetch error no longer wipes a previously-good signal off the row. v1.9.2 added a Settings tab with two independent Start/Stop switches — one for the main 23-coin live data engine (ticker/kline cycles, macro, news, ETF flows, whale trades, order book, the journal and both WebSocket streams), one for the Watchlist's own 45s refresh — so you can pause either one to save your Binance request budget when stepping away, without losing what's on screen: everything freezes on its last known values and resumes exactly where it left off. Both choices are remembered across reloads. Deliberately still out of scope: a working ETF auto-feed (needs a paid/keyed replacement for Farside — pending your provider choice), CoinGlass liquidation heatmaps, Glassnode / CryptoQuant on-chain netflows and Santiment/LunarCrush social data all require a paid API key, and a learned meta-model that reweights the agents needs months of journal data to train on first.</div>`;
+   `<div style="margin-top:14px;font-size:13px;line-height:1.6" class="dim">v1.6 added the signal journal (outcome tracking + the Model Lab scorecard), top-trader positioning, mark/index basis, whale CVD, exchange-wide forced liquidations, order-book imbalance, Deribit DVOL/put-call OI, Coinbase premium, stablecoin supply and real Treasury yields — all free and keyless. v1.7 expanded whale-trade tracking from the 6 Tier-I majors to all 23 coins, and fixed Live ETF Flows to honestly surface the real per-coin error (Farside is currently 403-blocking this server) instead of sitting silently empty. v1.7.1 fixed a crash in the Tech-Rating agent summary (it could pick a coin with no rating yet as "leader" and throw) that was silently killing every step after it on boot — which is why Intel & News, the Macro/Options poll, the economic calendar and the live auto-refresh could all go blank at once even though their data sources were healthy. v1.8 added Position Mode: a new weekly-candle 10-week/40-week EMA trend model, separate from the existing daily-candle Swing Mode in each coin's drawer, for genuinely holding across weeks and months with a trend-following exit instead of a fixed target. v1.9 added a Watchlist tab: a quick-add pair screener for one-off coins outside the main 23-coin roster, giving a simple buy/sell/hold read from live price action, funding and futures-vs-spot volume — shown nowhere else on the dashboard. v1.9.1 fixed a Watchlist bug where adding pairs in quick succession launched overlapping refresh loops that raced on the same rows — whichever one finished last won, so a pair that was loading fine could suddenly flash "not found on Binance USDⓈ-M futures" and back. Refreshes are now serialized (one pass at a time, queued if triggered again mid-pass), rate-limit responses (418/429) are no longer mislabeled as "not found," and a transient fetch error no longer wipes a previously-good signal off the row. v1.9.2 added a Settings tab with two independent Start/Stop switches — one for the main 23-coin live data engine (ticker/kline cycles, macro, news, ETF flows, whale trades, order book, the journal and both WebSocket streams), one for the Watchlist's own 45s refresh — so you can pause either one to save your Binance request budget when stepping away, without losing what's on screen: everything freezes on its last known values and resumes exactly where it left off. Both choices are remembered across reloads. v1.9.3 gave each Watchlist row a second line of the raw stats behind its call (RSI, MACD, ATR%, where price sits in its own ~50h range, 1h volume trend, OI and both volume figures — all from data already being fetched, no new per-pair requests), added a STRONG BUY/STRONG SELL tier that only lights up when most of those stats agree with the base trend (the funding/volume-ratio squeeze guard from v1.9/v1.9.1 still forces HOLD first and is never overridden by it), and added a Potential Breakouts panel below the Watchlist that scans every Binance USDⓈ-M perpetual not already tracked for liquid (≥$3m 24h quote volume), fast-moving, non-squeezed pairs — using 2 bulk exchange-wide calls regardless of how many contracts exist, so it adds no per-symbol request load. Deliberately still out of scope: a working ETF auto-feed (needs a paid/keyed replacement for Farside — pending your provider choice), CoinGlass liquidation heatmaps, Glassnode / CryptoQuant on-chain netflows and Santiment/LunarCrush social data all require a paid API key, and a learned meta-model that reweights the agents needs months of journal data to train on first.</div>`;
 }
 
 /* ============================================================
@@ -1879,7 +2001,7 @@ function stopEngine(){
   if(typeof renderSettings==='function')renderSettings();
 }
 async function boot(){
-  const lines=['> ZINERGE QUANT NEXUS v1.9.2','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
+  const lines=['> ZINERGE QUANT NEXUS v1.9.3','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
   const bl=$('#bootlog');for(const l of lines){bl.textContent+=l+'\n';await sleep(220);}
   initBg();buildCards();buildAgents();renderCapital();renderSources();wlInit();
   try{const h=await getJSON('/api/health',3000);S.hosted=!!(h&&h.ok);}catch(e){S.hosted=false;}
@@ -1899,6 +2021,7 @@ async function boot(){
     // Start/Stop — it always ticks; loadWatchlist() itself checks S.wlRunning
     // and no-ops when the user has paused just that section.
     setInterval(()=>{if(watchTabActive())loadWatchlist();},45e3);
+    setInterval(()=>{if(watchTabActive())loadBreakouts();},45e3);
     if(S.running){await startEngine();}
     else{
       md.className='mode sim';md.style.color='';md.style.borderColor='';$('#modeTxt').textContent='PAUSED';$('#simbar').style.display='none';
@@ -1918,7 +2041,7 @@ async function boot(){
 setInterval(()=>{$('#clock').textContent=new Date().toLocaleTimeString('en-GB')+' '+(Intl.DateTimeFormat().resolvedOptions().timeZone.split('/').pop()||'');},1000);
 const VIEWS=['command','agents','intel','capital','sources','flow','lab','position','watchlist','settings'];
 function show(v){if(!VIEWS.includes(v))v='command';document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));document.querySelectorAll('.view').forEach(x=>x.classList.toggle('on',x.id==='v-'+v));
-  if(v==='command')setTimeout(()=>COINS.forEach(k=>drawSpark(S.coins[k.c])),30);if(v==='sources')renderSources();if(v==='capital')renderCapital();if(v==='flow')renderFlowIntel();if(v==='intel')renderIntelPanel();if(v==='lab'&&typeof renderModelLab==='function')renderModelLab();if(v==='position'&&typeof renderPositionMode==='function')renderPositionMode();if(v==='watchlist'&&typeof renderWatchlist==='function'){renderWatchlist();if(typeof loadWatchlist==='function')loadWatchlist();}if(v==='settings'&&typeof renderSettings==='function')renderSettings();try{if(location.hash.slice(1)!==v)history.replaceState(null,'','#'+v);}catch(e){}}
+  if(v==='command')setTimeout(()=>COINS.forEach(k=>drawSpark(S.coins[k.c])),30);if(v==='sources')renderSources();if(v==='capital')renderCapital();if(v==='flow')renderFlowIntel();if(v==='intel')renderIntelPanel();if(v==='lab'&&typeof renderModelLab==='function')renderModelLab();if(v==='position'&&typeof renderPositionMode==='function')renderPositionMode();if(v==='watchlist'&&typeof renderWatchlist==='function'){renderWatchlist();if(typeof loadWatchlist==='function')loadWatchlist();if(typeof renderBreakouts==='function')renderBreakouts();if(typeof loadBreakouts==='function')loadBreakouts();}if(v==='settings'&&typeof renderSettings==='function')renderSettings();try{if(location.hash.slice(1)!==v)history.replaceState(null,'','#'+v);}catch(e){}}
 
 // SETTINGS — two independent Start/Stop switches: the main 23-coin live data
 // engine (startEngine()/stopEngine()) and the Watchlist's own refresh
@@ -1927,7 +2050,8 @@ function show(v){if(!VIEWS.includes(v))v='command';document.querySelectorAll('#t
 function toggleWlRunning(){
   S.wlRunning=!S.wlRunning;saveWlRunning();
   log('chief','Watchlist refresh '+(S.wlRunning?'resumed':'paused')+' — '+(S.wlRunning?'fetching again on its own 45s cycle.':'frozen on last values until resumed.'),'cy');
-  if(S.wlRunning)loadWatchlist();
+  if(S.wlRunning){loadWatchlist();loadBreakouts();}
+  else renderBreakouts();
   if(watchTabActive())renderWatchlist();
   renderSettings();
 }
