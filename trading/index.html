@@ -1369,11 +1369,15 @@ function analyseWatch(w){
 
   // v1.9.5 — 3rd line: WHY (the specific factors behind a LONG/SHORT call,
   // from whyLong/whyShort above) plus a simple ATR/swing-based trade plan
-  // (entry/SL/TP1-3). Deliberately left null on HOLD or on a factor set
-  // too thin to trust — the user explicitly said blank is fine when it
-  // can't be calculated, which matches this dashboard's "never show a
-  // fabricated value" convention (same one the v1.9.4 Command-tab fix
-  // restored) rather than forcing a plan out of a non-call.
+  // (entry/SL/TP1-3). why is always set on a non-HOLD call; plan can come
+  // back null (buildWatchPlan vetoes itself on a structurally-too-wide
+  // stop — see its own comment) without blanking the why text too, so a
+  // STRONG badge still explains itself even on the rare pair where a
+  // numeric ladder isn't safe to show. The user explicitly said blank is
+  // fine when it can't be calculated, which matches this dashboard's
+  // "never show a fabricated value" convention (same one the v1.9.4
+  // Command-tab fix restored) rather than forcing a plan out of a non-call
+  // or silently clamping a target into looking sane when it isn't.
   let why=null,plan=null;
   if(verdict!=='HOLD'){
     const L=verdict==='STRONG LONG'||verdict==='LONG';
@@ -1400,7 +1404,18 @@ function analyseWatch(w){
    1h data (~2 days of lookback), so projecting materially further than
    that out is stretching a short-term read past what it can honestly
    support — same "never claim more than the data backs" convention as
-   the rest of this dashboard. */
+   the rest of this dashboard.
+   Returns null — rather than a fabricated-looking number — when the
+   structural stop is wide enough that the 4R (TP3) target would land at
+   or past zero (only possible on the SHORT side: entry-4×slDist<=0).
+   This genuinely happens on thin, highly volatile small-caps with no
+   assigned leverage to cap the stop distance (unlike buildPlan() for the
+   main 23-coin roster, which caps slDist against each coin's own tier
+   leverage/liquidation distance) — e.g. a coin whose ~50h swing range
+   alone is 25%+ of price. Silently clamping slDist would make the ladder
+   LOOK calculated while actually being fudged; vetoing and leaving the
+   numeric plan blank (why/confluence text still shows) is the same
+   "never show a fabricated value" call as everywhere else in this file. */
 function fmtValidity(h){
   if(h<36)return'~'+Math.max(1,Math.round(h))+'h';
   const d=Math.round(h/24);return'~'+d+(d===1?' day':' days');
@@ -1412,6 +1427,7 @@ function buildWatchPlan(w,k,isLong,atrV){
   const slDist=Math.max(1.2*a1,isLong?entry-swingL+0.15*a1:swingH-entry+0.15*a1);
   const sl=isLong?entry-slDist:entry+slDist;
   const tp=[1.5,2.5,4].map(r=>isLong?entry+slDist*r:entry-slDist*r);
+  if(sl<=0||tp.some(t=>t<=0))return null; // structural stop too wide for a fixed-R ladder on this pair — see comment above
   const validHrs=clamp((slDist*2.5)/a1,1,240);
   return{entry,sl,tp,slPct:slDist/entry*100,validHrs,validTxt:fmtValidity(validHrs)};
 }
@@ -1494,9 +1510,16 @@ function renderWatchlist(){
       const line2=(a&&a.stats&&a.stats.length)?`<div class="dim" style="font-size:11px;margin-top:3px">${a.stats.join(' · ')}</div>`:'';
       // v1.9.5 — third line: WHY this call (the specific confirming factors,
       // from analyseWatch()'s whyLong/whyShort) plus a plain ATR/swing-based
-      // trade plan. Left out entirely on HOLD/no-call — a.plan is null there
-      // by design, so this never fabricates a trade on a non-signal.
-      const line3=(a&&a.plan)?`<div style="font-size:11px;margin-top:4px;color:var(--cyan)">${a.why} — <span class="mono">Entry ~${fmtP(a.plan.entry)} · SL ${fmtP(a.plan.sl)} (${a.plan.slPct.toFixed(2)}%) · TP1 ${fmtP(a.plan.tp[0])} · TP2 ${fmtP(a.plan.tp[1])} · TP3 ${fmtP(a.plan.tp[2])}</span> <span class="mono" title="Estimate only — based on the pace of recent 1h volatility (ATR), not a promise. If neither a target nor the stop has hit by roughly this long, treat the setup as stale and reassess or close manually." style="display:inline-block;margin-left:2px;padding:1px 7px;border:1px solid var(--amber);color:var(--amber);background:rgba(255,176,0,.12);border-radius:2px;font-size:10px;letter-spacing:.5px;white-space:nowrap;vertical-align:1px">⏱ VALID ${a.plan.validTxt}</span></div>`:'';
+      // trade plan. Left out entirely on HOLD/no-call, since a.why is null
+      // there by design. a.why can still be set with a.plan null (see
+      // buildWatchPlan()'s veto comment) — on a thin/volatile pair whose
+      // structural stop is too wide for a sane fixed-R ladder, the WHY
+      // explanation still shows but the numeric plan is honestly omitted
+      // rather than clamped into looking calculated.
+      const line3=a&&a.why?(a.plan
+        ?`<div style="font-size:11px;margin-top:4px;color:var(--cyan)">${a.why} — <span class="mono">Entry ~${fmtP(a.plan.entry)} · SL ${fmtP(a.plan.sl)} (${a.plan.slPct.toFixed(2)}%) · TP1 ${fmtP(a.plan.tp[0])} · TP2 ${fmtP(a.plan.tp[1])} · TP3 ${fmtP(a.plan.tp[2])}</span> <span class="mono" title="Estimate only — based on the pace of recent 1h volatility (ATR), not a promise. If neither a target nor the stop has hit by roughly this long, treat the setup as stale and reassess or close manually." style="display:inline-block;margin-left:2px;padding:1px 7px;border:1px solid var(--amber);color:var(--amber);background:rgba(255,176,0,.12);border-radius:2px;font-size:10px;letter-spacing:.5px;white-space:nowrap;vertical-align:1px">⏱ VALID ${a.plan.validTxt}</span></div>`
+        :`<div style="font-size:11px;margin-top:4px;color:var(--cyan)">${a.why} <span class="dim">— no numeric plan shown: this pair's stop distance is too wide relative to price for a fixed-R ladder here. Size and target it manually.</span></div>`
+      ):'';
       return`<tr><td><button class="wlx" data-sym="${w.sym}" title="Remove from watchlist" style="background:none;border:1px solid var(--line2);color:var(--dim);cursor:pointer;font-family:var(--mono);padding:2px 7px">×</button></td>
        <td><b>${w.base}</b><span class="dim mono" style="font-size:10px">/${w.quote}</span></td>
        <td class="mono">${fmtP(w.price)}</td>
