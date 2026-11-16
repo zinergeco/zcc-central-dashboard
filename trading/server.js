@@ -920,6 +920,211 @@ if (supabaseConfigured()) {
 }
 
 // ---------------------------------------------------------------------
+// v1.9.6 — Watchlist + Potential Breakouts signal journal. Separate table
+// (qnx_watch_journal) from the main 23-coin roster's qnx_signal_journal
+// above, reusing the exact same Supabase REST helpers and the exact same
+// walkTripleBarrier() function (its row shape — entry/sl/tp1/tp2/tp3/side —
+// already matches what a Watchlist row with a trade plan looks like, so
+// nothing needed to change there). Two differences from the main journal:
+// (1) each row is resolved against its OWN valid_hrs window (the same
+// ATR-paced estimate shown as the amber "VALID" badge) instead of a fixed
+// 24h, since that's the honesty window this feature already promised the
+// user; a Breakout/no-plan row (no sl/tp — Potential Breakouts candidates
+// have no kline data to build a ladder from) falls back to a fixed 24h
+// window and a simple directional return check instead of a barrier walk.
+// (2) ingest is client-throttled (see postWatchJournal() in index.html) —
+// a handful of Watchlist pairs re-evaluated every 45s would otherwise log
+// the "same" ongoing call dozens of times before it even resolves once.
+// ---------------------------------------------------------------------
+const WJ_SOURCES = new Set(['watchlist', 'breakout']);
+const WJ_SIDES = new Set(['LONG', 'SHORT']);
+const WJ_TIERS = new Set(['STRONG', 'PLAIN']);
+function sanitizeWatchRow(s) {
+  if (!s || typeof s !== 'object') return null;
+  const symbol = typeof s.symbol === 'string' ? s.symbol.slice(0, 20) : null;
+  const source = WJ_SOURCES.has(s.source) ? s.source : null;
+  const side = WJ_SIDES.has(s.side) ? s.side : null;
+  if (!symbol || !source || !side) return null;
+  const num = (v) => (typeof v === 'number' && isFinite(v) ? v : null);
+  return {
+    symbol,
+    source,
+    tier: WJ_TIERS.has(s.tier) ? s.tier : null,
+    side,
+    entry: num(s.entry),
+    sl: num(s.sl),
+    tp1: num(s.tp1),
+    tp2: num(s.tp2),
+    tp3: num(s.tp3),
+    valid_hrs: num(s.validHrs),
+  };
+}
+async function apiWatchJournalPost(req, res) {
+  if (!supabaseConfigured()) {
+    sendJSON(res, 200, { error: 'journal not configured on this server (no Supabase env vars)', inserted: 0 });
+    return;
+  }
+  try {
+    const bodyText = await readBody(req, 200000);
+    const body = JSON.parse(bodyText || '{}');
+    const list = Array.isArray(body.signals) ? body.signals : [];
+    const rows = list.map(sanitizeWatchRow).filter(Boolean);
+    if (!rows.length) {
+      sendJSON(res, 200, { inserted: 0 });
+      return;
+    }
+    await supabaseInsert('qnx_watch_journal', rows);
+    sendJSON(res, 200, { inserted: rows.length });
+  } catch (err) {
+    sendJSON(res, 200, { error: err.message, inserted: 0 });
+  }
+}
+// Breakout candidates (and any Watchlist row whose buildWatchPlan() vetoed
+// itself — see index.html's comment on that — so entry exists but sl/tp
+// don't) have no fixed-R ladder to barrier-walk, so they're scored purely
+// on direction: did price move favorably by more than a small noise band
+// (2%) over the resolution window. 'WIN'/'LOSS' sit alongside the main
+// journal's 'TP1'/'TP2'/'TP3'/'SL'/'TIMEOUT' outcome vocabulary — isWin
+// checks below treat 'WIN' and anything starting with 'TP' as a win, so
+// both resolution paths roll up into one win rate.
+function directionalOutcome(row, bars) {
+  const L = row.side === 'LONG';
+  let mfe = -Infinity,
+    mae = Infinity;
+  for (const b of bars) {
+    const favorable = L ? b.h : b.l;
+    const adverse = L ? b.l : b.h;
+    const favPct = L ? (favorable - row.entry) / row.entry : (row.entry - favorable) / row.entry;
+    const advPct = L ? (adverse - row.entry) / row.entry : (row.entry - adverse) / row.entry;
+    if (favPct > mfe) mfe = favPct;
+    if (advPct < mae) mae = advPct;
+  }
+  const lastClose = bars[bars.length - 1].c;
+  const ret = L ? (lastClose - row.entry) / row.entry : (row.entry - lastClose) / row.entry;
+  const outcome = ret >= 0.02 ? 'WIN' : ret <= -0.02 ? 'LOSS' : 'FLAT';
+  return { outcome, pnl_pct: ret * 100, mfe_pct: isFinite(mfe) ? mfe * 100 : null, mae_pct: isFinite(mae) ? mae * 100 : null };
+}
+async function resolveWatchJournalRow(row, windowHrs) {
+  const entryTs = new Date(row.ts).getTime();
+  const endTs = Math.min(Date.now(), entryTs + windowHrs * 60 * 60 * 1000);
+  const kl = await fetchKlineWindow(row.symbol, entryTs, endTs);
+  if (!Array.isArray(kl) || !kl.length) throw new Error('no kline data for ' + row.symbol);
+  const bars = kl.map((r) => ({ t: r[0], h: +r[2], l: +r[3], c: +r[4] }));
+  const hasPlan = row.entry != null && row.sl != null && row.tp1 != null;
+  const r = hasPlan ? walkTripleBarrier(row, bars) : directionalOutcome(row, bars);
+  await supabasePatch('qnx_watch_journal', `id=eq.${row.id}`, {
+    resolved: true,
+    outcome: r.outcome,
+    pnl_pct: r.pnl_pct,
+    mfe_pct: r.mfe_pct,
+    mae_pct: r.mae_pct,
+    closed_ts: new Date().toISOString(),
+  });
+}
+const WJ_RESOLVE_BATCH = 15;
+async function runWatchJournalResolution() {
+  if (!supabaseConfigured()) return;
+  try {
+    const rows = await supabaseSelect(
+      'qnx_watch_journal',
+      `resolved=eq.false&order=ts.asc&limit=${WJ_RESOLVE_BATCH}&select=id,ts,symbol,source,tier,side,entry,sl,tp1,tp2,tp3,valid_hrs`
+    );
+    if (!Array.isArray(rows) || !rows.length) return;
+    const now = Date.now();
+    for (const row of rows) {
+      const entryTs = new Date(row.ts).getTime();
+      // Breakout/no-plan rows carry no valid_hrs — fixed 24h window, same as the main journal.
+      const windowHrs = row.valid_hrs != null ? clampN(row.valid_hrs, 1, 240) : 24;
+      if (now - entryTs < windowHrs * 60 * 60 * 1000) continue; // this row's own validity window hasn't elapsed yet
+      try {
+        await resolveWatchJournalRow(row, windowHrs);
+      } catch (e) {
+        console.log('watch journal resolve failed for id=' + row.id + ': ' + e.message);
+        if (now - entryTs > 7 * 24 * 60 * 60 * 1000) {
+          try {
+            await supabasePatch('qnx_watch_journal', `id=eq.${row.id}`, { resolved: true, outcome: null, closed_ts: new Date().toISOString() });
+          } catch (e2) {
+            /* give up until next cycle */
+          }
+        }
+      }
+      await sleep(300);
+    }
+  } catch (e) {
+    console.log('watch journal resolution cycle failed: ' + e.message);
+  }
+}
+if (supabaseConfigured()) {
+  setInterval(runWatchJournalResolution, RESOLVE_INTERVAL_MS);
+  setTimeout(runWatchJournalResolution, 35000); // staggered a little after the main journal's own delayed first run
+}
+// GET /api/watchjournal/stats — combined Watchlist + Breakout scorecard.
+// Rolled up by source (watchlist vs breakout) and by tier (STRONG vs PLAIN,
+// Watchlist only — Breakout candidates have no confluence tier) so the
+// Watchlist tab's "SIGNAL PERFORMANCE" panel can show whether the STRONG
+// confirmation layer from v1.9.5 is actually earning its name, not just
+// an overall blended number.
+const WJ_STATS_CACHE_MS = 5 * 60 * 1000;
+let wjStatsCache = { data: null, fetchedAt: 0 };
+async function computeWatchJournalStats() {
+  const rows = await supabaseSelect(
+    'qnx_watch_journal',
+    'resolved=eq.true&order=ts.desc&limit=1000&select=symbol,source,tier,side,outcome,pnl_pct,ts'
+  );
+  const resolved = Array.isArray(rows) ? rows : [];
+  const isWin = (o) => typeof o === 'string' && (o === 'WIN' || o.indexOf('TP') === 0);
+  const bucket = () => ({ count: 0, wins: 0 });
+  const bySource = { watchlist: bucket(), breakout: bucket() };
+  const byTier = { STRONG: bucket(), PLAIN: bucket() };
+  const bySide = { LONG: bucket(), SHORT: bucket() };
+  let wins = 0,
+    pnlSum = 0,
+    pnlN = 0;
+  resolved.forEach((r) => {
+    const w = isWin(r.outcome);
+    if (w) wins++;
+    if (bySource[r.source]) {
+      bySource[r.source].count++;
+      if (w) bySource[r.source].wins++;
+    }
+    if (r.tier && byTier[r.tier]) {
+      byTier[r.tier].count++;
+      if (w) byTier[r.tier].wins++;
+    }
+    if (bySide[r.side]) {
+      bySide[r.side].count++;
+      if (w) bySide[r.side].wins++;
+    }
+    if (typeof r.pnl_pct === 'number' && isFinite(r.pnl_pct)) {
+      pnlSum += r.pnl_pct;
+      pnlN++;
+    }
+  });
+  const rate = (b) => (b.count ? b.wins / b.count : null);
+  return {
+    totalResolved: resolved.length,
+    overall: { winRate: resolved.length ? wins / resolved.length : null, avgPnlPct: pnlN ? pnlSum / pnlN : null, sample: resolved.length },
+    bySource: { watchlist: { count: bySource.watchlist.count, winRate: rate(bySource.watchlist) }, breakout: { count: bySource.breakout.count, winRate: rate(bySource.breakout) } },
+    byTier: { STRONG: { count: byTier.STRONG.count, winRate: rate(byTier.STRONG) }, PLAIN: { count: byTier.PLAIN.count, winRate: rate(byTier.PLAIN) } },
+    bySide: { LONG: { count: bySide.LONG.count, winRate: rate(bySide.LONG) }, SHORT: { count: bySide.SHORT.count, winRate: rate(bySide.SHORT) } },
+    recent: resolved.slice(0, 20).map((r) => ({ symbol: r.symbol, source: r.source, tier: r.tier, side: r.side, outcome: r.outcome, pnlPct: r.pnl_pct, ts: r.ts })),
+  };
+}
+async function apiWatchJournalStats(req, res) {
+  if (!supabaseConfigured()) {
+    sendJSON(res, 200, { error: 'journal not configured on this server (no Supabase env vars)' });
+    return;
+  }
+  try {
+    const stale = !wjStatsCache.data || Date.now() - wjStatsCache.fetchedAt > WJ_STATS_CACHE_MS;
+    if (stale) wjStatsCache = { data: await computeWatchJournalStats(), fetchedAt: Date.now() };
+    sendJSON(res, 200, { ...wjStatsCache.data, fetchedAt: wjStatsCache.fetchedAt });
+  } catch (err) {
+    sendJSON(res, 200, { error: err.message });
+  }
+}
+
+// ---------------------------------------------------------------------
 // GET /api/intel — free/keyless derivatives-adjacent & macro reads the
 // model-improvement review flagged as high value: Coinbase-vs-Binance
 // mark premium, Deribit DVOL + put/call open-interest ratio, total
@@ -1190,6 +1395,8 @@ const server = http.createServer(async (req, res) => {
     if (req.url === '/api/calendar') return apiCalendar(req, res);
     if (req.url === '/api/journal' && req.method === 'POST') return apiJournalPost(req, res);
     if (req.url === '/api/journal/stats') return apiJournalStats(req, res);
+    if (req.url === '/api/watchjournal' && req.method === 'POST') return apiWatchJournalPost(req, res);
+    if (req.url === '/api/watchjournal/stats') return apiWatchJournalStats(req, res);
     if (req.url === '/api/predict' && req.method === 'POST') return apiPredict(req, res);
 
     // Everything else serves the single-page app.
