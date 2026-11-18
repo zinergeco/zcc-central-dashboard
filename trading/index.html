@@ -251,7 +251,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
 
 <div class="app">
 <header>
-  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.9.7</small></div>
+  <div class="logo">ZCC // QUANT NEXUS<small>TRADING.Z-CC.LINK · AI FUTURES INTELLIGENCE · V1.9.8</small></div>
   <div class="hdr-mid">
     <button class="sect on" data-sect="crypto">◈ CRYPTO FUTURES</button>
     <button class="sect" data-sect="stocks">◇ GLOBAL STOCKS</button>
@@ -470,7 +470,7 @@ footer{margin-top:30px;font-size:12px;color:var(--dim);border-top:1px solid var(
   </div>
 </div>
 
-<footer>ZCC Trading · Quant Nexus v1.9.7 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
+<footer>ZCC Trading · Quant Nexus v1.9.8 · trading.z-cc.link · Signals are produced by algorithmic rules and are not financial advice. Leveraged futures can lose more than the margin posted. Back-test and paper-trade before you commit capital. In the UK, the FCA bans the sale of crypto derivatives to retail consumers, so check your eligibility on any venue you use.</footer>
 </div>
 
 <div id="shade"></div>
@@ -1354,6 +1354,16 @@ function analyseWatch(w){
   if(cmfV!=null){checked++;if(cmfV>0.05){agree++;whyLong.push('Chaikin Money Flow positive');}else if(cmfV<-0.05){agree--;whyShort.push('Chaikin Money Flow negative');}}
   const net=checked?agree/checked:0;
 
+  // v1.9.8: reuse the same high-impact-economic-event dampener the main
+  // roster's Macro agent already applies (calendarSoonEvents() — already
+  // fetched, no new request) so a Watchlist call can't earn STRONG inside a
+  // ±2h window around a scheduled volatility spike (CPI, a Fed/central-bank
+  // speech, etc.) it's about to get invalidated by on the merits, not on
+  // whether it was actually a good read. Caps STRONG down to plain
+  // LONG/SHORT only — never touches the squeeze/trend/move gate above, and
+  // never turns a HOLD into a call.
+  const calSoon=calendarSoonEvents();
+
   const stats=[];
   stats.push(`RSI(1h) ${rsiV!=null?rsiV.toFixed(0):'—'}`);
   stats.push(`MACD ${mH!=null?(mH>=0?'+':'')+mH.toFixed(5):'—'}`);
@@ -1370,9 +1380,12 @@ function analyseWatch(w){
 
   let verdict;
   if(squeeze)verdict='HOLD';
-  else if(trendUp&&w.chg>3)verdict=net>=0.5?'STRONG LONG':'LONG';
-  else if(trendDn&&w.chg<-3)verdict=net<=-0.5?'STRONG SHORT':'SHORT';
+  else if(trendUp&&w.chg>3)verdict=(net>=0.5&&!calSoon.length)?'STRONG LONG':'LONG';
+  else if(trendDn&&w.chg<-3)verdict=(net<=-0.5&&!calSoon.length)?'STRONG SHORT':'SHORT';
   else verdict='HOLD';
+  if(calSoon.length&&((trendUp&&w.chg>3&&net>=0.5)||(trendDn&&w.chg<-3&&net<=-0.5))){
+    reasons.push('STRONG capped to plain — high-impact event window ('+calSoon[0].title+')');
+  }
 
   // v1.9.5 — 3rd line: WHY (the specific factors behind a LONG/SHORT call,
   // from whyLong/whyShort above) plus a simple ATR/swing-based trade plan
@@ -1438,6 +1451,41 @@ function buildWatchPlan(w,k,isLong,atrV){
   const validHrs=clamp((slDist*2.5)/a1,1,240);
   return{entry,sl,tp,slPct:slDist/entry*100,validHrs,validTxt:fmtValidity(validHrs)};
 }
+/* v1.9.8 — Watchlist sentiment column. There is no keyless social-media
+   sentiment source (real Twitter/Reddit scoring needs a paid LunarCrush or
+   Santiment API key — the same hard "can't create an account or pay for a
+   subscription on your behalf" boundary already documented for CoinGlass/
+   Glassnode elsewhere on this dashboard). Rather than fabricate a number,
+   this reuses the dashboard's own already-fetched, already-scored live
+   newswire (S.news / sentimentOf(), the same pipeline behind the main
+   roster's News Sentiment agent and its Sentiment-by-coin table) and tags
+   headlines to each Watchlist pair by its base symbol. Honestly labeled as
+   "News Sentiment," not "Social," on the column header and its tooltip —
+   it is headline sentiment, not social-media sentiment. Returns null (no
+   matching headlines) rather than a forced Buy/Sell guess when there's
+   nothing to go on. */
+function watchSentiment(w){
+  if(!S.news||!S.news.length)return null;
+  const term=' '+w.base.toLowerCase()+' ';
+  let net=0,count=0;
+  S.news.forEach(n=>{
+    const txt=' '+(n.title+' '+(n.body||'').slice(0,300)).toLowerCase()+' ';
+    if(txt.includes(term)){count++;net+=(n.s!=null?n.s:sentimentOf(n.title));}
+  });
+  if(!count)return{count:0,net:0,verdict:null};
+  return{count,net,verdict:net>0?'BUY':net<0?'SELL':'NEUTRAL'};
+}
+function renderSentCell(w){
+  const s=watchSentiment(w);
+  if(!s||!s.count)return'<span class="dim" title="No matching headlines in the current newswire batch">—</span>';
+  if(s.verdict==='BUY')return`<span class="badge LONG" style="margin-left:0;font-size:10px" title="${s.count} matching headline(s), net sentiment +${s.net}">▲ BUY</span>`;
+  if(s.verdict==='SELL')return`<span class="badge SHORT" style="margin-left:0;font-size:10px" title="${s.count} matching headline(s), net sentiment ${s.net}">▼ SELL</span>`;
+  return`<span class="dim" title="${s.count} matching headline(s), net sentiment 0">NEUTRAL</span>`;
+}
+function renderLsCell(w){
+  if(!w.lsRatio)return'<span class="dim">—</span>';
+  return`<span class="up">${w.lsRatio.longPct.toFixed(0)}%L</span> / <span class="dn">${w.lsRatio.shortPct.toFixed(0)}%S</span>`;
+}
 let wlBusy=false,wlPending=false;
 async function loadWatchlist(){
   // Independent Start/Stop: paused here never touches the main 23-coin engine's
@@ -1456,16 +1504,24 @@ async function loadWatchlist(){
     if(!S.wl.length)return;let ok=0,err=0;
     for(const w of S.wl){
       try{
-        const [tk,pi,oiRaw,sp,kl]=await Promise.all([
+        const [tk,pi,oiRaw,sp,kl,lsRaw]=await Promise.all([
           getJSON(`${FAPI}/fapi/v1/ticker/24hr?symbol=${w.sym}`),
           getJSON(`${FAPI}/fapi/v1/premiumIndex?symbol=${w.sym}`),
           getJSON(`${FAPI}/futures/data/openInterestHist?symbol=${w.sym}&period=1h&limit=25`).catch(()=>[]),
           getJSON(`https://api.binance.com/api/v3/ticker/24hr?symbol=${w.sym}`).catch(()=>null),
-          getJSON(`${FAPI}/fapi/v1/klines?symbol=${w.sym}&interval=1h&limit=50`)]);
+          getJSON(`${FAPI}/fapi/v1/klines?symbol=${w.sym}&interval=1h&limit=50`),
+          getJSON(`${FAPI}/futures/data/globalLongShortAccountRatio?symbol=${w.sym}&period=5m&limit=1`).catch(()=>null)]);
         w.price=+tk.lastPrice;w.chg=+tk.priceChangePercent;w.futVol24h=+tk.quoteVolume;
         w.funding=pi.lastFundingRate!=null?+pi.lastFundingRate*100:null;
         w.oi=Array.isArray(oiRaw)?oiRaw.map(x=>+x.sumOpenInterestValue):[];
         w.spotVol24h=sp?+sp.quoteVolume:null;
+        // v1.9.8: Binance's own account-level long/short ratio for this pair —
+        // what fraction of accounts currently hold a long vs a short on it, as
+        // reported directly by the exchange, not derived or guessed at. Caught
+        // individually so a pair Binance doesn't report this for yet never
+        // breaks the rest of the row's data.
+        const lsRow=Array.isArray(lsRaw)&&lsRaw.length?lsRaw[0]:null;
+        w.lsRatio=(lsRow&&lsRow.longAccount!=null)?{longPct:+lsRow.longAccount*100,shortPct:+lsRow.shortAccount*100}:null;
         w.k1h=mapK(kl);w.err=null;w.an=analyseWatch(w);ok++;
       }catch(e){
         const m=e.message||'';
@@ -1494,7 +1550,7 @@ function renderWatchlist(){
   const meta=$('#wlMeta'),tbl=$('#wlTable');if(!meta||!tbl)return;
   if(!S.wl.length){meta.textContent=S.wlRunning?'—':'⏸ paused';tbl.innerHTML='<div class="dim">No pairs added yet — type a symbol above (e.g. BARDUSDT, or just BARD) and click Add.</div>';return;}
   meta.textContent=S.wlRunning?('updated '+ts()+' · '+S.wl.length+' pair'+(S.wl.length===1?'':'s')):('⏸ paused · '+S.wl.length+' pair'+(S.wl.length===1?'':'s')+' · frozen — resume from Settings');
-  tbl.innerHTML='<table><tr><th></th><th>PAIR</th><th>PRICE</th><th>24H</th><th>SIGNAL</th><th>ANALYSIS</th></tr>'+
+  tbl.innerHTML='<table><tr><th></th><th>PAIR</th><th>PRICE</th><th>24H</th><th title="Binance\'s own account-level long/short ratio for this pair right now">L/S %</th><th title="Headline sentiment from this dashboard\'s own live newswire, tagged by symbol. Not social-media (Twitter/Reddit) sentiment — that needs a paid API key this assistant can\'t sign up or pay for on your behalf.">NEWS SENT. ⓘ</th><th>SIGNAL</th><th>ANALYSIS</th></tr>'+
     S.wl.map(w=>{
       const a=w.an;const v=a?a.verdict:null;
       // A verdict with a space ('STRONG LONG') can't be a CSS class as-is —
@@ -1531,10 +1587,12 @@ function renderWatchlist(){
        <td><b>${w.base}</b><span class="dim mono" style="font-size:10px">/${w.quote}</span></td>
        <td class="mono">${fmtP(w.price)}</td>
        <td class="mono ${chgCls}">${w.chg!=null?pct(w.chg,1):'—'}</td>
+       <td class="mono" style="font-size:11px">${renderLsCell(w)}</td>
+       <td style="font-size:11px">${renderSentCell(w)}</td>
        <td><span class="badge ${vClass}" style="margin-left:0">${label}</span></td>
        <td style="font-size:12.5px;line-height:1.5">${line1}${line2}${line3}</td></tr>`;
     }).join('')+'</table>'+
-    '<div class="dim" style="font-size:12px;margin-top:10px">Price action and positioning only — 24h move, the 9/21/50 EMA stack, RSI, MACD, ATR, where price sits in its own ~50h range, 1h volume trend, funding rate, open-interest change, futures-vs-spot volume, plus a stronger confirmation layer of ADX/DI trend strength, Stoch RSI, Bollinger position/squeeze, OBV, Williams %R, Supertrend, Donchian position and Chaikin Money Flow. STRONG only shows when most of those agree with the base trend, and the cyan line under a LONG/SHORT/STRONG call explains which specific factors backed it plus a plain ATR/swing-based entry/stop/target plan (TP1/TP2/TP3) with an amber "VALID" estimate of how long that setup should stay fresh at the pace of recent 1h volatility before you should reassess or close manually if neither a target nor the stop has hit — left blank on HOLD, since there is no call to plan around. None of this knows about token unlock schedules, project news or protocol-level risk (a chain shutting down, a freeze vote, etc.), so check those yourself before sizing anything, especially on thin, recently-pumped coins like these.</div>';
+    '<div class="dim" style="font-size:12px;margin-top:10px">Price action and positioning only — 24h move, the 9/21/50 EMA stack, RSI, MACD, ATR, where price sits in its own ~50h range, 1h volume trend, funding rate, open-interest change, futures-vs-spot volume, plus a stronger confirmation layer of ADX/DI trend strength, Stoch RSI, Bollinger position/squeeze, OBV, Williams %R, Supertrend, Donchian position and Chaikin Money Flow. STRONG only shows when most of those agree with the base trend and no high-impact economic event is due within 2 hours, and the cyan line under a LONG/SHORT/STRONG call explains which specific factors backed it plus a plain ATR/swing-based entry/stop/target plan (TP1/TP2/TP3) with an amber "VALID" estimate of how long that setup should stay fresh at the pace of recent 1h volatility before you should reassess or close manually if neither a target nor the stop has hit — left blank on HOLD, since there is no call to plan around. The L/S % column is Binance\'s own account-level long/short ratio for that pair, reported directly, not derived. The NEWS SENT. column tags this dashboard\'s own live newswire to the pair\'s symbol and shows Buy/Sell/— by net headline tone — it is headline sentiment, not social-media (Twitter/Reddit) sentiment, which would need a paid API key no keyless source currently offers. None of this knows about token unlock schedules, project news or protocol-level risk (a chain shutting down, a freeze vote, etc.), so check those yourself before sizing anything, especially on thin, recently-pumped coins like these.</div>';
   tbl.querySelectorAll('.wlx').forEach(b=>b.onclick=()=>removeWatch(b.dataset.sym));
 }
 
@@ -2089,13 +2147,13 @@ const SOURCES=[
  ['journalStats','Model Lab Scorecard','/api/journal/stats (aggregated server-side from the journal)','Per-agent directional accuracy, win rate and Brier calibration — Model Lab tab','5 min'],
  ['watchJournal','Watchlist Signal Journal','/api/watchjournal → Supabase (service role, server-side only)','Watchlist STRONG/LONG/SHORT calls and Potential Breakout candidates logged, then outcome-checked once each one\'s own VALID window (or 24h for a Breakout) has elapsed — feeds the Watchlist tab\'s Signal Performance panel','45 s while Watchlist tab open'],
  ['watchJournalStats','Watchlist Signal Scorecard','/api/watchjournal/stats (aggregated server-side from the watch journal)','Combined Watchlist + Breakout win rate, broken down by source/tier/side — Watchlist tab','5 min'],
- ['wl','Watchlist Quick-Screen','/fapi/v1/ticker/24hr · /premiumIndex · /openInterestHist · 1h klines (per pair) + Binance Spot /api/v3/ticker/24hr','User-added pairs on the Watchlist tab: price, funding, OI change, futures-vs-spot volume ratio and a simple buy/sell/hold read','45 s · only while that tab is open'],
+ ['wl','Watchlist Quick-Screen','/fapi/v1/ticker/24hr · /premiumIndex · /openInterestHist · /globalLongShortAccountRatio · 1h klines (per pair) + Binance Spot /api/v3/ticker/24hr','User-added pairs on the Watchlist tab: price, funding, OI change, futures-vs-spot volume ratio, account-level long/short %, headline-based news sentiment and a simple buy/sell/hold read','45 s · only while that tab is open'],
  ['brk','Breakout Scanner','/fapi/v1/ticker/24hr · /premiumIndex (bulk, all symbols)','Liquidity + momentum + funding-sanity scan of every USDⓈ-M perpetual not already tracked, for the Potential Breakouts panel on the Watchlist tab','45 s · only while that tab is open']];
 function renderSources(){
   if(!S.hosted)setSrc('etf',(S.etf.BTC!=null&&S.etf.BTC!=='')?'ok':'wait',(S.etf.BTC!=null&&S.etf.BTC!=='')?'manual values injected':'enter in Intel tab');
   $('#srcTable').innerHTML='<table><tr><th>SOURCE</th><th>ENDPOINT</th><th>FEEDS</th><th>REFRESH</th><th>STATUS</th><th>LAST</th></tr>'+SOURCES.map(([id,n,e,f,r])=>{const s=S.src[id]||{status:'wait'};const cls={ok:'ok',wait:'wait',blk:'blk',err:'err'}[s.status]||'wait';const lbl={ok:'LIVE',wait:'PENDING',blk:'SANDBOXED',err:'ERROR'}[s.status]||'PENDING';
     return`<tr><td style="font-weight:600">${n}</td><td class="mono cy">${e}</td><td style="font-size:13px">${f}${s.note?`<br><span class="dim" style="font-size:11px">${s.note}</span>`:''}</td><td class="mono">${r}</td><td><span class="st ${cls}">${lbl}</span></td><td class="mono dim">${s.at||'—'}</td></tr>`;}).join('')+'</table>'+
-   `<div style="margin-top:14px;font-size:13px;line-height:1.6" class="dim">v1.6 added the signal journal (outcome tracking + the Model Lab scorecard), top-trader positioning, mark/index basis, whale CVD, exchange-wide forced liquidations, order-book imbalance, Deribit DVOL/put-call OI, Coinbase premium, stablecoin supply and real Treasury yields — all free and keyless. v1.7 expanded whale-trade tracking from the 6 Tier-I majors to all 23 coins, and fixed Live ETF Flows to honestly surface the real per-coin error (Farside is currently 403-blocking this server) instead of sitting silently empty. v1.7.1 fixed a crash in the Tech-Rating agent summary (it could pick a coin with no rating yet as "leader" and throw) that was silently killing every step after it on boot — which is why Intel & News, the Macro/Options poll, the economic calendar and the live auto-refresh could all go blank at once even though their data sources were healthy. v1.8 added Position Mode: a new weekly-candle 10-week/40-week EMA trend model, separate from the existing daily-candle Swing Mode in each coin's drawer, for genuinely holding across weeks and months with a trend-following exit instead of a fixed target. v1.9 added a Watchlist tab: a quick-add pair screener for one-off coins outside the main 23-coin roster, giving a simple buy/sell/hold read from live price action, funding and futures-vs-spot volume — shown nowhere else on the dashboard. v1.9.1 fixed a Watchlist bug where adding pairs in quick succession launched overlapping refresh loops that raced on the same rows — whichever one finished last won, so a pair that was loading fine could suddenly flash "not found on Binance USDⓈ-M futures" and back. Refreshes are now serialized (one pass at a time, queued if triggered again mid-pass), rate-limit responses (418/429) are no longer mislabeled as "not found," and a transient fetch error no longer wipes a previously-good signal off the row. v1.9.2 added a Settings tab with two independent Start/Stop switches — one for the main 23-coin live data engine (ticker/kline cycles, macro, news, ETF flows, whale trades, order book, the journal and both WebSocket streams), one for the Watchlist's own 45s refresh — so you can pause either one to save your Binance request budget when stepping away, without losing what's on screen: everything freezes on its last known values and resumes exactly where it left off. Both choices are remembered across reloads. v1.9.3 gave each Watchlist row a second line of the raw stats behind its call (RSI, MACD, ATR%, where price sits in its own ~50h range, 1h volume trend, OI and both volume figures — all from data already being fetched, no new per-pair requests), added a STRONG BUY/STRONG SELL tier that only lights up when most of those stats agree with the base trend (the funding/volume-ratio squeeze guard from v1.9/v1.9.1 still forces HOLD first and is never overridden by it), and added a Potential Breakouts panel below the Watchlist that scans every Binance USDⓈ-M perpetual not already tracked for liquid (≥$3m 24h quote volume), fast-moving, non-squeezed pairs — using 2 bulk exchange-wide calls regardless of how many contracts exist, so it adds no per-symbol request load. v1.9.4 fixed two bugs reported from live use: a CSS bug where the new STRONG BUY/STRONG SELL badges could wrap onto two lines and visually overlap the row below them (badges now always render on one line), and a longer-standing bug where a coin card could briefly show a fabricated "0.00000000" price with a NaN ATR% and a meaningless score/confidence instead of an honest pending state whenever its price or candle data hadn't arrived yet (most often during a Binance rate-limit window) — cards now correctly hold their last known-good read, or their initial "Agents analysing…" placeholder, until real data is actually in. v1.9.5 added a stronger confirmation layer to the Watchlist's STRONG BUY/STRONG SELL tier — ADX/DI trend strength, Stoch RSI, Bollinger position/squeeze, OBV, Williams %R, Supertrend, Donchian position and Chaikin Money Flow, the same proven indicators the main roster's own Technical Rating Engine already uses, all computed from data each row already fetches — and a new third line under every LONG/SHORT/STRONG call spelling out exactly which factors backed it plus a plain ATR/swing-based trade plan (entry, stop-loss, and a TP1/TP2/TP3 target ladder) with a highlighted amber estimate of how long that setup should stay valid before you should manually reassess or close, left blank on HOLD since there's no call to plan around. v1.9.6 adds a Signal Performance panel to the Watchlist tab: every STRONG/LONG/SHORT Watchlist call and every Potential Breakouts candidate is now logged to its own journal (separate from the main roster's) and checked against real candles once it's actually had time to play out — a Watchlist call against its own amber VALID window, a Breakout candidate (no trade plan to barrier-walk) against a fixed 24h directional check — surfacing total resolved signals, overall win rate, and a breakdown by Watchlist vs. Breakout, STRONG vs. Plain tier, and LONG vs. SHORT, plus a Recent Resolved Signals list. This is observation, exactly like the Model Lab tab for the main roster: nothing here changes a threshold automatically, and it fills in slowly by design since nothing is back-filled or estimated. v1.9.7 made its first real change based on that observation: the Signal Performance panel's first day of data showed Potential Breakouts' LONG calls losing an average of -16% (worst -42.65%) against wins averaging only +6.7%, almost entirely on coins that had already moved far past the BUY filter's minimum before being flagged — a momentum-chase on an already-extended pump, not an early breakout. Anything up more than 25% today now shows as a non-actionable ⚠ EXTENDED warning instead of a BUY badge, and is excluded from the win-rate journal entirely rather than counted as a call. Potential Breakouts' SELL side showed no such pattern and was deliberately left unchanged, as was the Watchlist's own 13-factor confluence engine — both still have too little resolved sample to justify touching. Deliberately still out of scope: a working ETF auto-feed (needs a paid/keyed replacement for Farside — pending your provider choice), CoinGlass liquidation heatmaps, Glassnode / CryptoQuant on-chain netflows and Santiment/LunarCrush social data all require a paid API key, and a learned meta-model that reweights the agents needs months of journal data to train on first.</div>`;
+   `<div style="margin-top:14px;font-size:13px;line-height:1.6" class="dim">v1.6 added the signal journal (outcome tracking + the Model Lab scorecard), top-trader positioning, mark/index basis, whale CVD, exchange-wide forced liquidations, order-book imbalance, Deribit DVOL/put-call OI, Coinbase premium, stablecoin supply and real Treasury yields — all free and keyless. v1.7 expanded whale-trade tracking from the 6 Tier-I majors to all 23 coins, and fixed Live ETF Flows to honestly surface the real per-coin error (Farside is currently 403-blocking this server) instead of sitting silently empty. v1.7.1 fixed a crash in the Tech-Rating agent summary (it could pick a coin with no rating yet as "leader" and throw) that was silently killing every step after it on boot — which is why Intel & News, the Macro/Options poll, the economic calendar and the live auto-refresh could all go blank at once even though their data sources were healthy. v1.8 added Position Mode: a new weekly-candle 10-week/40-week EMA trend model, separate from the existing daily-candle Swing Mode in each coin's drawer, for genuinely holding across weeks and months with a trend-following exit instead of a fixed target. v1.9 added a Watchlist tab: a quick-add pair screener for one-off coins outside the main 23-coin roster, giving a simple buy/sell/hold read from live price action, funding and futures-vs-spot volume — shown nowhere else on the dashboard. v1.9.1 fixed a Watchlist bug where adding pairs in quick succession launched overlapping refresh loops that raced on the same rows — whichever one finished last won, so a pair that was loading fine could suddenly flash "not found on Binance USDⓈ-M futures" and back. Refreshes are now serialized (one pass at a time, queued if triggered again mid-pass), rate-limit responses (418/429) are no longer mislabeled as "not found," and a transient fetch error no longer wipes a previously-good signal off the row. v1.9.2 added a Settings tab with two independent Start/Stop switches — one for the main 23-coin live data engine (ticker/kline cycles, macro, news, ETF flows, whale trades, order book, the journal and both WebSocket streams), one for the Watchlist's own 45s refresh — so you can pause either one to save your Binance request budget when stepping away, without losing what's on screen: everything freezes on its last known values and resumes exactly where it left off. Both choices are remembered across reloads. v1.9.3 gave each Watchlist row a second line of the raw stats behind its call (RSI, MACD, ATR%, where price sits in its own ~50h range, 1h volume trend, OI and both volume figures — all from data already being fetched, no new per-pair requests), added a STRONG BUY/STRONG SELL tier that only lights up when most of those stats agree with the base trend (the funding/volume-ratio squeeze guard from v1.9/v1.9.1 still forces HOLD first and is never overridden by it), and added a Potential Breakouts panel below the Watchlist that scans every Binance USDⓈ-M perpetual not already tracked for liquid (≥$3m 24h quote volume), fast-moving, non-squeezed pairs — using 2 bulk exchange-wide calls regardless of how many contracts exist, so it adds no per-symbol request load. v1.9.4 fixed two bugs reported from live use: a CSS bug where the new STRONG BUY/STRONG SELL badges could wrap onto two lines and visually overlap the row below them (badges now always render on one line), and a longer-standing bug where a coin card could briefly show a fabricated "0.00000000" price with a NaN ATR% and a meaningless score/confidence instead of an honest pending state whenever its price or candle data hadn't arrived yet (most often during a Binance rate-limit window) — cards now correctly hold their last known-good read, or their initial "Agents analysing…" placeholder, until real data is actually in. v1.9.5 added a stronger confirmation layer to the Watchlist's STRONG BUY/STRONG SELL tier — ADX/DI trend strength, Stoch RSI, Bollinger position/squeeze, OBV, Williams %R, Supertrend, Donchian position and Chaikin Money Flow, the same proven indicators the main roster's own Technical Rating Engine already uses, all computed from data each row already fetches — and a new third line under every LONG/SHORT/STRONG call spelling out exactly which factors backed it plus a plain ATR/swing-based trade plan (entry, stop-loss, and a TP1/TP2/TP3 target ladder) with a highlighted amber estimate of how long that setup should stay valid before you should manually reassess or close, left blank on HOLD since there's no call to plan around. v1.9.6 adds a Signal Performance panel to the Watchlist tab: every STRONG/LONG/SHORT Watchlist call and every Potential Breakouts candidate is now logged to its own journal (separate from the main roster's) and checked against real candles once it's actually had time to play out — a Watchlist call against its own amber VALID window, a Breakout candidate (no trade plan to barrier-walk) against a fixed 24h directional check — surfacing total resolved signals, overall win rate, and a breakdown by Watchlist vs. Breakout, STRONG vs. Plain tier, and LONG vs. SHORT, plus a Recent Resolved Signals list. This is observation, exactly like the Model Lab tab for the main roster: nothing here changes a threshold automatically, and it fills in slowly by design since nothing is back-filled or estimated. v1.9.7 made its first real change based on that observation: the Signal Performance panel's first day of data showed Potential Breakouts' LONG calls losing an average of -16% (worst -42.65%) against wins averaging only +6.7%, almost entirely on coins that had already moved far past the BUY filter's minimum before being flagged — a momentum-chase on an already-extended pump, not an early breakout. Anything up more than 25% today now shows as a non-actionable ⚠ EXTENDED warning instead of a BUY badge, and is excluded from the win-rate journal entirely rather than counted as a call. Potential Breakouts' SELL side showed no such pattern and was deliberately left unchanged, as was the Watchlist's own 13-factor confluence engine — both still have too little resolved sample to justify touching. Deliberately still out of scope: a working ETF auto-feed (needs a paid/keyed replacement for Farside — pending your provider choice), CoinGlass liquidation heatmaps, Glassnode / CryptoQuant on-chain netflows and Santiment/LunarCrush social data all require a paid API key, and a learned meta-model that reweights the agents needs months of journal data to train on first. v1.9.8 added two columns to the Watchlist table — Binance's own account-level long/short % for each pair, and a headline-sentiment Buy/Sell read tagged from this dashboard's own live newswire (honestly labeled "News Sent.," not "Social," since real social-media scoring needs the same paid API key as the sources listed above) — and, on the signal-quality side the Signal Performance panel's sample hadn't grown since v1.9.7 shipped the day before (still 37 resolved, same thin batch), so rather than tune against noise, a STRONG BUY/STRONG SELL call on the Watchlist is now also capped to plain LONG/SHORT inside a ±2h window around any high-impact economic-calendar event — the same dampener the main roster's Macro agent already applies, reused here with no new data source, so a call isn't rated STRONG right before a scheduled volatility spike can invalidate it on timing rather than on the merits.</div>`;
 }
 
 /* ============================================================
@@ -2238,7 +2296,7 @@ function stopEngine(){
   if(typeof renderSettings==='function')renderSettings();
 }
 async function boot(){
-  const lines=['> ZINERGE QUANT NEXUS v1.9.7','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
+  const lines=['> ZINERGE QUANT NEXUS v1.9.8','> initialising neural core ............ OK','> loading 9 agent personas ............ OK','> probing Binance USDⓈ-M uplink ........'];
   const bl=$('#bootlog');for(const l of lines){bl.textContent+=l+'\n';await sleep(220);}
   initBg();buildCards();buildAgents();renderCapital();renderSources();wlInit();
   try{const h=await getJSON('/api/health',3000);S.hosted=!!(h&&h.ok);}catch(e){S.hosted=false;}
